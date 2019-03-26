@@ -46,6 +46,7 @@ class Fracture():
         self.zmin = np.min(self.vertici[2, :])
         self.zmax = np.max(self.vertici[2, :])
 
+        #il Bounding Box è meglio salvarlo così con 6 variabili o direttamente in una matrice???
 
 
 
