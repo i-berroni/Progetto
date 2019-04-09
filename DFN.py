@@ -42,38 +42,38 @@ class DiscreteFractureNetwork:
         self.genfrac(self.N)
 
 
-    def genfrac(self, n_togen):
+    def genfrac(self, n_to_gen):
 
         '''
         Genera n_togen fratture e le stampa
         '''
 
         # semiaxes_x mi restituisce un vettore di n_togen semiassi (maggiori) dell'asse X nell'intervallo [radius_l,radius_u]
-        semiaxes_x = self.pl_dist.sample(n_togen)
+        semiaxes_x = self.pl_dist.sample(n_to_gen)
 
         # ars è aspect ratio, ovvero il rapporto tra semiasse delle X e semiasse delle Y, dato da un'uniforme definita in [1,3]
-        ars = np.random.uniform(1, 3, n_togen)
+        ars = np.random.uniform(1, 3, n_to_gen)
 
         # normals mi dà una "matrice" 3xn_togen con le normali come vettori colonna
-        normals = self.vmf_dist.sample(n_togen)
+        normals = self.vmf_dist.sample(n_to_gen)
 
         # n_edges genera il numero di lati (un numero intero positivo) in maniera randomica tra 8 e 16
-        n_edges = np.random.random_integers(8, 16, n_togen)
+        n_edges = np.random.random_integers(8, 16, n_to_gen)
 
         # alpha_angles sarebbe l'angolo di rotazione attorno alla normale (ovviamente sempre sul piano)
-        alpha_angles = np.random.uniform(0, 2 * np.pi, n_togen)
+        alpha_angles = np.random.uniform(0, 2 * np.pi, n_to_gen)
 
         # generazione randomica dei baricentri dei poligoni, i quali sono inseriti in una matrice n_togenx3
         centers = np.random.uniform(np.array([self.Xmin, self.Ymin, self.Zmin]),
                                     np.array([self.Xmax, self.Ymax, self.Zmax]),
-                                    (n_togen, 3))
+                                    (n_to_gen, 3))
 
         print("Qui di seguito sono i valori:\n\n","\n\nIl vettore dei semiassi:\n\n",semiaxes_x,"\n\nAspect Ratio:\n\n",ars,
               "\n\nVettore delle normali:\n\n",normals,"\n\nVettore del numero dei lati\n\n",n_edges,
         "\n\nVettore degli angoli di rotazione attorno alla normale, sul piano:\n\n",alpha_angles,"\n\nVettore dei baricentri dei poligoni:\n\n",centers)
 
         # Creo i poligoni e li inserisco nella lista
-        for i in range(n_togen):
+        for i in range(n_to_gen):
             tmp = frac.Fracture(n_edges[i], semiaxes_x[i], alpha_angles[i], ars[i], normals[:,i], centers[i,:])
             self.fractures.append(tmp)
 
@@ -82,12 +82,15 @@ class DiscreteFractureNetwork:
         Rimuove le fratture nelle posizioni indicate dal vettore v (tenendo conto che l'indice parte da 0)
         Ad esempio se v = [2,4] il metodo rimuove il terzo poligono e il quinto
         '''
-        #print(len(v))
-        #print("questo è range",range(len(v)))
-        for i in range(len(v)):
-            self.fractures.pop(v[#???])
-            # DA CAPIRE QUALE INDICE METTERE
 
+        v = np.sort(v)      #ordino il vettore così da poter usare il metodo senza problemi
+        for i in range(len(v)):
+            self.fractures.pop(v[- i - 1])
+
+    def possibili_intersezioni(self):
+        '''
+        Metodo che guarda ai Bounding Box delle fratture per una prima scrematura su possibili intersezioni
+        '''
 
 
 
@@ -98,6 +101,6 @@ r = DiscreteFractureNetwork(3, 0, 1, 0, 1, 0, 1, 2, 3, 4, 2, np.array([[0.], [0.
 print(r.fractures)
 r.genfrac(2)
 print(r.fractures)
-r.rimuovi([2,3,4])
+r.rimuovi([2,4,0])
 print(r.fractures)
 
