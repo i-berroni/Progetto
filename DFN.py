@@ -38,12 +38,6 @@ class DiscreteFractureNetwork:
         self.fractures = []
         self.genfrac(N)
 
-        # Lista di liste richiesta al punto 9, DA FINIRE E CONTROLLARE (in caso si dovrebbe modificare anche il metodo genfrac)
-        self.L = []
-        for i in range(self.N):
-            self.L.append([])
-        self.possibili_intersezioni()
-
 
     def genfrac(self, n_to_gen):
 
@@ -82,6 +76,7 @@ class DiscreteFractureNetwork:
 
         self.N = self.N + n_to_gen
 
+
     def rimuovi(self, v):
         '''
         Rimuove le fratture nelle posizioni indicate dal vettore v (tenendo conto che l'indice parte da 0)
@@ -93,19 +88,27 @@ class DiscreteFractureNetwork:
             self.fractures.pop(v[- i - 1])
         self.N = self.N - len(v)
 
+
     def possibili_intersezioni(self): #DA FINIRE E CONTROLLARE
         '''
-        Metodo che guarda ai Bounding Box delle fratture per una prima scrematura su possibili intersezioni
+        Metodo che guarda ai Bounding Box delle fratture per una prima scrematura su possibili intersezioni.
+        Ritorna una lista di liste come richiesto al punto 9
         '''
+
+        l = []
+
+        #questo primo for serve per riempire la lista L con self.N liste vuote
         for i in range(self.N):
-            self.L.append([])
-            for j in range(self.N - i - 1):
-                max_x_min = max(self.fractures[i].xmin, self.fractures[i + j + 1].xmin)
-                min_x_max = min(self.fractures[i].xmax, self.fractures[i + j + 1].xmax)
-                max_y_min = max(self.fractures[i].ymin, self.fractures[i + j + 1].ymin)
-                min_y_max = min(self.fractures[i].ymax, self.fractures[i + j + 1].ymax)
-                max_z_min = max(self.fractures[i].zmin, self.fractures[i + j + 1].zmin)
-                min_z_max = min(self.fractures[i].zmax, self.fractures[i + j + 1].zmax)
+            l.append([])
+
+        for i in range(self.N - 1):
+            for j in range(i + 1, self.N):
+                max_x_min = max(self.fractures[i].xmin, self.fractures[j].xmin)
+                min_x_max = min(self.fractures[i].xmax, self.fractures[j].xmax)
+                max_y_min = max(self.fractures[i].ymin, self.fractures[j].ymin)
+                min_y_max = min(self.fractures[i].ymax, self.fractures[j].ymax)
+                max_z_min = max(self.fractures[i].zmin, self.fractures[j].zmin)
+                min_z_max = min(self.fractures[i].zmax, self.fractures[j].zmax)
                 if max_x_min > min_x_max:
                     break
                 elif max_y_min > min_y_max:
@@ -113,20 +116,25 @@ class DiscreteFractureNetwork:
                 elif max_z_min > min_z_max:
                     break
                 else:
-                    self.L[i].append(i + j + 1)
-                    self.L[i + j + 1].append(i)
+                    l[i].append(j)
+                    l[j].append(i)
+        return l
+
 
 
 # Creo un oggetto dove inizializzo variabili che decido io
 # e poi modifico il metodo di genfrac
 # per fargli stampare i dati dell'asse x
-r = DiscreteFractureNetwork(3, 0, 1, 0, 1, 0, 1, 2, 3, 4, 2, np.array([[0.], [0.], [1.]]))
+r = DiscreteFractureNetwork(3, 0, 5, 0, 5, 0, 5, 2, 1, 2, 2, np.array([[0.], [0.], [1.]]))
 print(r.fractures)
 print(r.N)
 r.genfrac(2)
 print(r.fractures)
 print(r.N)
-r.rimuovi([2,4,0])
-print(r.fractures)
-print(r.N)
+# r.rimuovi([2,4,0])
+# print(r.fractures)
+# print(r.N)
+
+l = r.possibili_intersezioni()
+print(l)
 
