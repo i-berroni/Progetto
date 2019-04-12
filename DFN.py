@@ -7,7 +7,7 @@ class DiscreteFractureNetwork:
     def __init__(self, N, Xmin, Xmax, Ymin, Ymax, Zmin, Zmax, alpha_pl, radius_l, radius_u, k, mode_vector):
 
         # N = numero delle fratture richieste
-        self.N = 0  #il valore verrà poi aggiornato nel metodo genfrac
+        self.N = 0  # il valore verrà poi aggiornato nel metodo genfrac
 
         # Definisco gli estremi del dominio del DFN
         # (ovvero la regione dello spazio in cui si trovano i baricentri delle fratture)
@@ -32,10 +32,15 @@ class DiscreteFractureNetwork:
         self.mode_vector = mode_vector / np.linalg.norm(mode_vector)
         # qui sto definendo la distribuzione Von Mises-Fisher, k è il parametro di concentrazione
         # (parametro della distribuzione), mode_vector è un vettore di modulo unitario
-        self.vmf_dist = dist.VonMisesFisher(k=k, mode_vector=mode_vector)
+        self.vmf_dist = dist.VonMisesFisher(k=k, mode_vector=self.mode_vector)
 
         # questo è una lista di poligoni che si rifà alla classe fracture(che, appunto, è una classe che rappresenta il poligono)
+        # e viene aggiornata nel metodo genfrac
         self.fractures = []
+
+        # Lista di lista con le possibili intersezioni, aggiornata in genfrac
+        self.poss_intersezioni = []
+
         self.genfrac(N)
 
 
@@ -74,7 +79,9 @@ class DiscreteFractureNetwork:
             tmp = frac.Fracture(n_edges[i], semiaxes_x[i], alpha_angles[i], ars[i], normals[:,i], centers[i,:])
             self.fractures.append(tmp)
 
+        # Aggiorno gli attributi
         self.N = self.N + n_to_gen
+        self.poss_intersezioni = self.possibili_intersezioni()
 
 
     def rimuovi(self, v):
@@ -83,13 +90,16 @@ class DiscreteFractureNetwork:
         Ad esempio se v = [2,4] il metodo rimuove il terzo poligono e il quinto
         '''
 
-        v = np.sort(v)      #ordino il vettore così da poter usare il metodo senza problemi
+        v = np.sort(v)      # ordino il vettore così da poter usare il metodo senza problemi
         for i in range(len(v)):
             self.fractures.pop(v[- i - 1])
+
+        # Aggiorno gli attributi
         self.N = self.N - len(v)
+        self.poss_intersezioni = self.possibili_intersezioni()
 
 
-    def possibili_intersezioni(self): #DA FINIRE E CONTROLLARE
+    def possibili_intersezioni(self): # DA FINIRE E CONTROLLARE
         '''
         Metodo che guarda ai Bounding Box delle fratture per una prima scrematura su possibili intersezioni.
         Ritorna una lista di liste come richiesto al punto 9
@@ -97,7 +107,7 @@ class DiscreteFractureNetwork:
 
         l = []
 
-        #questo primo for serve per riempire la lista L con self.N liste vuote
+        # Questo primo for serve per riempire la lista L con self.N liste vuote
         for i in range(self.N):
             l.append([])
 
@@ -121,20 +131,24 @@ class DiscreteFractureNetwork:
         return l
 
 
-
 # Creo un oggetto dove inizializzo variabili che decido io
 # e poi modifico il metodo di genfrac
 # per fargli stampare i dati dell'asse x
-r = DiscreteFractureNetwork(3, 0, 5, 0, 5, 0, 5, 2, 1, 2, 2, np.array([[0.], [0.], [1.]]))
+r = DiscreteFractureNetwork(3, 0, 5, 0, 5, 0, 5, 2, 2, 3, 2, np.array([[0.], [0.], [1.]]))
 print(r.fractures)
 print(r.N)
+print(r.poss_intersezioni)
 r.genfrac(2)
 print(r.fractures)
 print(r.N)
-# r.rimuovi([2,4,0])
-# print(r.fractures)
-# print(r.N)
+print(r.poss_intersezioni)
 
-l = r.possibili_intersezioni()
-print(l)
+r.rimuovi([2,4,0])
+print(r.poss_intersezioni)
+
+
+# l = r.possibili_intersezioni()
+
+# r.poss.intersezioni
+# print(l)
 
