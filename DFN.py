@@ -1,5 +1,5 @@
-from Progetto import distributions as dist
-from Progetto import fracture as frac
+import distributions as dist
+import fracture as frac
 import numpy as np
 
 class DiscreteFractureNetwork:
@@ -99,7 +99,7 @@ class DiscreteFractureNetwork:
         self.poss_intersezioni = self.possibili_intersezioni()
 
 
-    def possibili_intersezioni(self): # DA FINIRE E CONTROLLARE
+    def possibili_intersezioni(self):
         '''
         Metodo che guarda ai Bounding Box delle fratture per una prima scrematura su possibili intersezioni.
         Ritorna una lista di liste come richiesto al punto 9
@@ -131,6 +131,30 @@ class DiscreteFractureNetwork:
         return l
 
 
+    def scrittura1(self):
+        with open('Users/angel/Desktop/Progetto1/file.txt','w') as f1:
+            print(self.N,file=f1)
+            for i in range(self.N):
+                print(i,self.fractures[i].n,file=f1)
+                for j in range(self.fractures[i].n):
+                    print(self.fractures[i].vertici[0,j],
+                          self.fractures[i].vertici[1, j],
+                          self.fractures[i].vertici[2, j],file=f1)
+
+
+
+
+
+
+r = DiscreteFractureNetwork(3, 0, 5, 0, 5, 0, 5, 2, 2, 3, 2, np.array([[0.], [0.], [1.]]))
+r.scrittura1()
+
+
+
+
+'''
+
+
 # Creo un oggetto dove inizializzo variabili che decido io
 # e poi modifico il metodo di genfrac
 # per fargli stampare i dati dell'asse x
@@ -150,5 +174,10 @@ print(r.poss_intersezioni)
 # l = r.possibili_intersezioni()
 
 # r.poss.intersezioni
+
 # print(l)
 
+
+
+
+'''
