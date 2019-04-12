@@ -1,6 +1,9 @@
 import distributions as dist
 import fracture as frac
 import numpy as np
+import plotly.graph_objs as go
+import plotly.offline as poff
+
 
 class DiscreteFractureNetwork:
 
@@ -110,7 +113,7 @@ class DiscreteFractureNetwork:
         # Questo primo for serve per riempire la lista L con self.N liste vuote
         for i in range(self.N):
             l.append([])
-
+          #  l = [[]] * 5
         for i in range(self.N - 1):
             for j in range(i + 1, self.N):
                 max_x_min = max(self.fractures[i].xmin, self.fractures[j].xmin)
@@ -145,6 +148,31 @@ class DiscreteFractureNetwork:
                           self.fractures[i].vertici[1, j],
                           self.fractures[i].vertici[2, j], file=f1)
 
+    def visual3D(self):
+
+        all_polygons = []
+        for i in range(self.N):
+            x = self.fractures[i].vertici[0, :].tolist()
+            y = self.fractures[i].vertici[1, :].tolist()
+            z = self.fractures[i].vertici[2, :].tolist()
+
+            x.append(x[0])
+            y.append(y[0])
+            z.append(z[0])
+            perimetro = go.Scatter3d(x=x, y=y, z=z,
+                                 mode='lines',
+                                 marker=dict(
+                                     color='red'
+                                 )
+                                 )
+            area = go.Mesh3d(x=x, y=y, z=z, color='#FFB6C1', opacity=0.60)
+
+            all_polygons.append(perimetro)
+            all_polygons.append(area)
+            
+        fig_3d_alltogether = go.Figure(data=all_polygons)
+        poff.plot(fig_3d_alltogether)
+
 
     def scrittura2(self):
         '''
@@ -155,9 +183,9 @@ class DiscreteFractureNetwork:
 
 
 
-r = DiscreteFractureNetwork(3, 0, 5, 0, 5, 0, 5, 2, 2, 3, 2, np.array([[0.], [0.], [1.]]))
-r.scrittura1()
-
+r = DiscreteFractureNetwork(10, 0, 5, 0, 5, 0, 5, 2, 2, 3, 2, np.array([[0.], [0.], [1.]]))
+#r.scrittura1()
+r.visual3D()
 
 
 
