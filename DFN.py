@@ -1,9 +1,6 @@
 import distributions as dist
 import fracture as frac
 import numpy as np
-import plotly.graph_objs as go
-import plotly.offline as poff
-
 
 class DiscreteFractureNetwork:
 
@@ -14,7 +11,6 @@ class DiscreteFractureNetwork:
 
         # Definisco gli estremi del dominio del DFN
         # (ovvero la regione dello spazio in cui si trovano i baricentri delle fratture)
-        # il nome delle variabili e' uguale a quelle del Bounding Box della classe Fracture, e' un problema???
         self.Xmin = Xmin
         self.Xmax = Xmax
         self.Ymin = Ymin
@@ -84,7 +80,8 @@ class DiscreteFractureNetwork:
 
         # Aggiorno gli attributi
         self.N = self.N + n_to_gen
-        self.poss_intersezioni = self.possibili_intersezioni()
+        self.poss_intersezioni = self.possibili_intersezioni()  # DA MODIFICARE
+
 
 
     def rimuovi(self, v):
@@ -99,7 +96,7 @@ class DiscreteFractureNetwork:
 
         # Aggiorno gli attributi
         self.N = self.N - len(v)
-        self.poss_intersezioni = self.possibili_intersezioni()
+        self.poss_intersezioni = self.possibili_intersezioni()      #DA MODIFICARE
 
 
     def possibili_intersezioni(self):
@@ -113,7 +110,7 @@ class DiscreteFractureNetwork:
         # Questo primo for serve per riempire la lista L con self.N liste vuote
         for i in range(self.N):
             l.append([])
-          #  l = [[]] * 5
+
         for i in range(self.N - 1):
             for j in range(i + 1, self.N):
                 max_x_min = max(self.fractures[i].xmin, self.fractures[j].xmin)
@@ -122,19 +119,13 @@ class DiscreteFractureNetwork:
                 min_y_max = min(self.fractures[i].ymax, self.fractures[j].ymax)
                 max_z_min = max(self.fractures[i].zmin, self.fractures[j].zmin)
                 min_z_max = min(self.fractures[i].zmax, self.fractures[j].zmax)
-                if max_x_min > min_x_max:
-                    break
-                elif max_y_min > min_y_max:
-                    break
-                elif max_z_min > min_z_max:
-                    break
-                else:
+                if max_x_min <= min_x_max and max_y_min <= min_y_max and max_z_min <= min_z_max:
                     l[i].append(j)
                     l[j].append(i)
         return l
 
 
-    def scrittura1(self):   # il metodo funziona e scrive su file, e' da migliorare la formattazione
+    def scrittura1(self):   # il metodo funziona e scrive su file, forse e' da migliorare la formattazione
         '''
         Metodo per scrivere su file come richiesto al punto 7
         '''
@@ -148,7 +139,17 @@ class DiscreteFractureNetwork:
                           self.fractures[i].vertici[1, j],
                           self.fractures[i].vertici[2, j], file=f1)
 
+
+    def scrittura2(self):
+        '''
+        Metodo per scrivere su file come richiesto al punto 8
+        :return:
+        '''
+
     def visual3D(self):
+        '''
+        Metodo per la visualizzazione grafica delle fratture
+        '''
 
         all_polygons = []
         for i in range(self.N):
@@ -160,32 +161,22 @@ class DiscreteFractureNetwork:
             y.append(y[0])
             z.append(z[0])
             perimetro = go.Scatter3d(x=x, y=y, z=z,
-                                 mode='lines',
-                                 marker=dict(
-                                     color='red'
-                                 )
-                                 )
+                                     mode='lines',
+                                     marker=dict(
+                                         color='red'
+                                     )
+                                     )
             area = go.Mesh3d(x=x, y=y, z=z, color='#FFB6C1', opacity=0.60)
 
             all_polygons.append(perimetro)
             all_polygons.append(area)
-            
+
         fig_3d_alltogether = go.Figure(data=all_polygons)
         poff.plot(fig_3d_alltogether)
 
+r = DiscreteFractureNetwork(3, 0, 5, 0, 5, 0, 5, 2, 2, 3, 2, np.array([[0.], [0.], [1.]]))
+r.scrittura1()
 
-    def scrittura2(self):
-        '''
-        Metodo per scrivere su file come richiesto al punto 8
-        :return:
-        '''
-
-
-
-
-r = DiscreteFractureNetwork(10, 0, 5, 0, 5, 0, 5, 2, 2, 3, 2, np.array([[0.], [0.], [1.]]))
-#r.scrittura1()
-r.visual3D()
 
 
 
