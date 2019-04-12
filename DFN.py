@@ -1,6 +1,8 @@
 import distributions as dist
 import fracture as frac
 import numpy as np
+import plotly.graph_objs as go
+import plotly.offline as poff
 
 class DiscreteFractureNetwork:
 
@@ -22,7 +24,7 @@ class DiscreteFractureNetwork:
         self.alpha_pl = alpha_pl
         self.radius_l = radius_l
         self.radius_u = radius_u
-        # qui sto definendo la distribuzione power law bounded per i semiassi delle x
+        # Definisco la distribuzione power law bounded per i semiassi delle x
         self.pl_dist = dist.PowerLawBounded(alpha=alpha_pl, radius_l=radius_l, radius_u=radius_u)
 
         # Definisco i parametri della distribuzione Von Mises-Fisher (vmf_dist)
@@ -60,11 +62,13 @@ class DiscreteFractureNetwork:
 
         # n_edges genera il numero di lati (un numero intero positivo) in maniera randomica tra 8 e 16
         n_edges = np.random.random_integers(8, 16, n_to_gen)
+        # DA IMPLEMENTARE ANCHE IL CASO IN CUI VOGLIA FISSARE IL NUMERO DI VERTICI DEI POLIGONI
+        # (ad esempio voglio creare solo esagoni, solo ottagoni, ecc...)
 
         # alpha_angles sarebbe l'angolo di rotazione attorno alla normale (ovviamente sempre sul piano)
         alpha_angles = np.random.uniform(0, 2 * np.pi, n_to_gen)
 
-        # generazione randomica dei baricentri dei poligoni, i quali sono inseriti in una matrice n_togenx3
+        # generazione randomica dei baricentri dei poligoni, i quali sono inseriti in una matrice n_to_gen x 3
         centers = np.random.uniform(np.array([self.Xmin, self.Ymin, self.Zmin]),
                                     np.array([self.Xmax, self.Ymax, self.Zmax]),
                                     (n_to_gen, 3))
@@ -75,12 +79,14 @@ class DiscreteFractureNetwork:
 
         # Creo i poligoni e li inserisco nella lista
         for i in range(n_to_gen):
-            tmp = frac.Fracture(n_edges[i], semiaxes_x[i], alpha_angles[i], ars[i], normals[:,i], centers[i,:])
+            tmp = frac.Fracture(n_edges[i], semiaxes_x[i], alpha_angles[i], ars[i], normals[:, i], centers[i, :])
             self.fractures.append(tmp)
 
         # Aggiorno gli attributi
         self.N = self.N + n_to_gen
-        self.poss_intersezioni = self.possibili_intersezioni()  # DA MODIFICARE
+        self.poss_intersezioni = self.possibili_intersezioni()  # DA MODIFICARE: dobbiamo aggiornare l'attributo in
+                                                                # maniera meno dispendiosa senza richiamare il metodo
+                                                                # possibili_intersezioni()
 
 
 
@@ -96,7 +102,9 @@ class DiscreteFractureNetwork:
 
         # Aggiorno gli attributi
         self.N = self.N - len(v)
-        self.poss_intersezioni = self.possibili_intersezioni()      #DA MODIFICARE
+        self.poss_intersezioni = self.possibili_intersezioni()      # DA MODIFICARE: dobbiamo aggiornare l'attributo in
+                                                                # maniera meno dispendiosa senza richiamare il metodo
+                                                                # possibili_intersezioni()
 
 
     def possibili_intersezioni(self):
@@ -105,11 +113,7 @@ class DiscreteFractureNetwork:
         Ritorna una lista di liste come richiesto al punto 9
         '''
 
-        l = []
-
-        # Questo primo for serve per riempire la lista L con self.N liste vuote
-        for i in range(self.N):
-            l.append([])
+        l = [[]] * self.N
 
         for i in range(self.N - 1):
             for j in range(i + 1, self.N):
@@ -140,17 +144,40 @@ class DiscreteFractureNetwork:
                           self.fractures[i].vertici[2, j], file=f1)
 
 
-    def scrittura2(self):
+    def scrittura2(self):   # il metodo funziona e scrive su file, forse e' da migliorare la formattazione
         '''
         Metodo per scrivere su file come richiesto al punto 8
-        :return:
         '''
+
+        with open('file2.txt', 'w') as f2:
+            print(self.N, file=f2)
+
+            somma_vertici = 0
+            for i in range(self.N):
+                somma_vertici = somma_vertici + self.fractures[i].n
+            print(somma_vertici, file=f2)
+
+            # print(sum(???), file=f2)  # potrebbe funzionare anche così??? eviterei un ciclo for
+
+            indice = 0
+            for i in range(self.N):
+                print(i, self.fractures[i].n, indice, file=f2)
+                indice = indice + self.fractures[i].n
+
+            for i in range(self.N):
+                for j in range(self.fractures[i].n):
+                    print(self.fractures[i].vertici[0, j],
+                          self.fractures[i].vertici[1, j],
+                          self.fractures[i].vertici[2, j], file=f2)
+
+
 
     def visual3D(self):
         '''
         Metodo per la visualizzazione grafica delle fratture
         '''
-
+        # Non comprende il caso in cui un poligono sia parallelo a uno dei tre piani coordinati
+        # Forse si possono modificare le impostazioni grafiche
         all_polygons = []
         for i in range(self.N):
             x = self.fractures[i].vertici[0, :].tolist()
@@ -174,8 +201,10 @@ class DiscreteFractureNetwork:
         fig_3d_alltogether = go.Figure(data=all_polygons)
         poff.plot(fig_3d_alltogether)
 
-r = DiscreteFractureNetwork(3, 0, 5, 0, 5, 0, 5, 2, 2, 3, 2, np.array([[0.], [0.], [1.]]))
-r.scrittura1()
+r = DiscreteFractureNetwork(6, 0, 5, 0, 5, 0, 5, 2, 2, 3, 2, np.array([[0.], [0.], [1.]]))
+# r.scrittura1()
+# r.visual3D()
+r.scrittura2()
 
 
 
