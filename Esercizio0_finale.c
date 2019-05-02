@@ -1,11 +1,14 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 
 int main(){
-int N,*vett=NULL,i,tmp;
+int N,i;
+char *vett=NULL,tmp;
+
 printf("Inserisci la lunghezza del vettore:\n");
 scanf("%d",&N);
-vett=(int*)malloc(N*sizeof(int));
+vett=(char*)malloc(N*sizeof(char));
 
 //faccio il controllo se l'allocazione è andata a buon fine:
 if (vett == NULL) {
@@ -14,18 +17,18 @@ if (vett == NULL) {
 }
 
 
-printf("Inserisci ora i numeri che vuoi inserire:\n");
+printf("Inserisci ora i caratteri che vuoi inserire:\n");
 for(i=0;i<N;i++)
 {
-    printf("Numero %d\n",i);
-    scanf("%d", &vett[i]);
+    scanf(" %c", &vett[i]);
+    
 }
 printf("Il vettore che hai stampato e':\n");
 for(i=0;i<N;i++) { 
-    printf("v[%d]=%d\n",i,vett[i]); 
+    printf("v[%d]=%c\n",i,vett[i]); 
     }
 
-for(i=0;i<(N/2)-1;i++){
+for(i=0;i<(N/2);i++){
     tmp=vett[i];
     vett[i]=vett[N-i-1];
     vett[N-i-1]=tmp;
@@ -33,7 +36,7 @@ for(i=0;i<(N/2)-1;i++){
 printf("\n\nIl vettore dopo la trasformazione e':\n");
 for(i=0;i<N;i++)
 {
-    printf("%d\n",vett[i]);
+    printf("%c",vett[i]);
 }
 return 0;
 
