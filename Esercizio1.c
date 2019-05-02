@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 //definisco i prototipi:
-int* swap(int *vett,int N);
+char* swap(char *vett,int N);
 
 int main(){
-int N,*vett=NULL,i,tmp;
+int N,i;
+char *vett=NULL;
 printf("Inserisci la lunghezza del vettore:\n");
 scanf("%d",&N);
-vett=(int*)malloc(N*sizeof(int));
+vett=(char*)malloc(N*sizeof(char));
 
 //faccio il controllo se l'allocazione è andata a buon fine:
 if (vett == NULL) {
@@ -19,12 +20,12 @@ if (vett == NULL) {
 printf("Inserisci ora i numeri che vuoi inserire:\n");
 for(i=0;i<N;i++)
 {
-    printf("Numero %d\n",i);
-    scanf("%d", &vett[i]);
+    
+    scanf(" %c", &vett[i]);
 }
 printf("Il vettore che hai stampato e':\n");
 for(i=0;i<N;i++) { 
-    printf("v[%d]=%d\n",i,vett[i]); 
+    printf("v[%d]=%c\n",i,vett[i]); 
     }
 
 
@@ -34,7 +35,7 @@ swap(vett,N);
 printf("\n\nIl vettore dopo la trasformazione e':\n");
 for(i=0;i<N;i++)
 {
-    printf("%d\n",vett[i]);
+    printf("%c",vett[i]);
 }
 return 0;
 }
@@ -42,21 +43,16 @@ return 0;
 
 //Qui eseguo lo swap:
 //Io restituisco un puntatore a un int (un vettore di interi)
-int* swap(int vett[],int N){
-int i,tmp;
+char* swap(char vett[],int N){
+int i;
+char tmp;
 
-for(i=0;i<(N/2)-1;i++){
+for(i=0;i<(N/2);i++){
     tmp=vett[i];
     vett[i]=vett[N-i-1];
     vett[N-i-1]=tmp;
     }
     return vett;
 }
-
-
-
-
-
-
 
 
