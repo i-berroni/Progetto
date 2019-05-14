@@ -3,11 +3,25 @@ import fracture as frac
 import numpy as np
 import plotly.graph_objs as go
 import plotly.offline as poff
+import dill
 
 
 class DiscreteFractureNetwork:
 
-    def __init__(self, N, Xmin, Xmax, Ymin, Ymax, Zmin, Zmax, alpha_pl, radius_l, radius_u, k, mode_vector, flag_n_edges=0):
+    def __init__(self, N, Xmin, Xmax, Ymin, Ymax, Zmin, Zmax,
+                 alpha_pl, radius_l, radius_u, k, mode_vector, flag_n_edges=0):
+        """
+        Costruttore della classe
+        :param N: numero di fratture
+        :param Xmin, Xmax, Ymin, Ymax, Zmin, Zmax: estremi del dominio del DFN
+        :param alpha_pl: parametro (> 1) della distribuzione Power LawBounded per i semiassi delle ascisse
+        :param radius_l: limite inferiore dei semiassi delle ascisse
+        :param radius_u: limite superiore dei semiassi delle ascisse
+        :param k: parametro di concentrazione della legge Von Mises-Fisher
+        :param mode_vector: punto medio della legge Von Mises-Fisher
+        :param flag_n_edges: numero fissato dei lati dei poligoni (> 2); se non specificato ogni poligono ha
+        un numero casuale di lati da 8 a 16 (distribuiti uniformemente)
+        """
 
         # N = numero delle fratture richieste
         self.N = 0  # il valore verrà poi aggiornato nel metodo genfrac
@@ -47,10 +61,10 @@ class DiscreteFractureNetwork:
         self.genfrac(N)
 
     def genfrac(self, n_to_gen):
-
-        '''
+        """
         Genera n_to_gen fratture e le stampa
-        '''
+        :param n_to_gen: numero di fratture da generare
+        """
 
         # semiaxes_x mi restituisce un vettore di n_togen semiassi (maggiori) dell'asse X nell'intervallo [radius_l,radius_u]
         semiaxes_x = self.pl_dist.sample(n_to_gen)
@@ -94,13 +108,14 @@ class DiscreteFractureNetwork:
                                                                 # possibili_intersezioni()
 
     def rimuovi(self, v):
-        '''
+        """
         Rimuove le fratture nelle posizioni indicate dal vettore v (tenendo conto che l'indice parte da 0)
         Ad esempio se v = [2,4] il metodo rimuove il terzo poligono e il quinto
-        '''
+        :param v: vettore (o lista) contenente gli indici dei poligoni da rimuovere
+        """
 
         # DA CONTROLLARE
-        v = np.sort(v).tolist()
+        v = list(np.sort(v))
         for i in range(len(v)-1):  # rimuove tutte le ripetizioni
             if v[i] == v[i+1]:
                 v.pop(i)
@@ -119,10 +134,11 @@ class DiscreteFractureNetwork:
         self.N = self.N - len(v)
 
     def possibili_intersezioni(self):
-        '''
+        """
         Metodo che guarda ai Bounding Box delle fratture per una prima scrematura su possibili intersezioni.
-        Ritorna una lista di liste come richiesto al punto 9
-        '''
+        :return: lista di liste tale che l'i-esima lista contenga gli indici delle fratture del DFN con BB intersecante
+        il BB dell'i-esimo poligono
+        """
 
         l = []
         for i in range(self.N):
@@ -142,9 +158,9 @@ class DiscreteFractureNetwork:
         return l
 
     def scrittura1(self):
-        '''
+        """
         Metodo per scrivere su file come richiesto al punto 7
-        '''
+        """
 
         with open('file1.txt', 'w') as f1:
             print(self.N, file=f1)
@@ -155,10 +171,10 @@ class DiscreteFractureNetwork:
                           self.fractures[i].vertici[1, j],
                           self.fractures[i].vertici[2, j], file=f1)
 
-    def scrittura2(self):   # il metodo funziona e scrive su file, forse e' da migliorare la formattazione
-        '''
+    def scrittura2(self):
+        """
         Metodo per scrivere su file come richiesto al punto 8
-        '''
+        """
 
         with open('file2.txt', 'w') as f2:
             print(self.N, file=f2)
@@ -180,9 +196,9 @@ class DiscreteFractureNetwork:
                           self.fractures[i].vertici[2, j], file=f2)
 
     def visual3D(self):
-        '''
+        """
         Metodo per la visualizzazione grafica delle fratture
-        '''
+        """
         # Non comprende il caso in cui un poligono sia parallelo a uno dei tre piani coordinati
         # Forse si possono modificare le impostazioni grafiche
         all_polygons = []
@@ -208,19 +224,29 @@ class DiscreteFractureNetwork:
         fig_3d_alltogether = go.Figure(data=all_polygons)
         poff.plot(fig_3d_alltogether)
 
+    def save(self):
+        """
+        Salva l'oggetto DiscreteFractureNetwork come file .pkl
+        """
+        # DA CONTROLLSRE
+        with open('DFN.pkl', 'wb') as f3:
+            dill.dump(self, f3)
+
 
 r = DiscreteFractureNetwork(10, 0, 10, 0, 10, 0, 10, 2, 1, 2, 2, np.array([[0.], [0.], [1.]]), 8)
 # r.scrittura1()
-r.visual3D()
+# r.visual3D()
 # r.scrittura2()
 # print(r.poss_intersezioni)
 # r.rimuovi([0,0,1])
 # print("Indici aggiornati")
 # print(r.poss_intersezioni)
 
-
-
-
+# Codice per testare salvataggio su file .pkl  -> OK
+r.save()
+with open('DFN.pkl', 'rb') as f4:
+    r1 = dill.load(f4)
+r1.visual3D()
 
 
 '''
