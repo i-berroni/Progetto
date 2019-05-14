@@ -4,9 +4,10 @@ import numpy as np
 import plotly.graph_objs as go
 import plotly.offline as poff
 
+
 class DiscreteFractureNetwork:
 
-    def __init__(self, N, Xmin, Xmax, Ymin, Ymax, Zmin, Zmax, alpha_pl, radius_l, radius_u, k, mode_vector):
+    def __init__(self, N, Xmin, Xmax, Ymin, Ymax, Zmin, Zmax, alpha_pl, radius_l, radius_u, k, mode_vector, flag_n_edges=0):
 
         # N = numero delle fratture richieste
         self.N = 0  # il valore verrà poi aggiornato nel metodo genfrac
@@ -19,6 +20,8 @@ class DiscreteFractureNetwork:
         self.Ymax = Ymax
         self.Zmin = Zmin
         self.Zmax = Zmax
+
+        self.flag_n_edges = flag_n_edges
 
         # Definisco i parametri della distribuzione PowerLawBounded (pl_dist)
         self.alpha_pl = alpha_pl
@@ -35,15 +38,13 @@ class DiscreteFractureNetwork:
         # (parametro della distribuzione), mode_vector è un vettore di modulo unitario
         self.vmf_dist = dist.VonMisesFisher(k=k, mode_vector=self.mode_vector)
 
-        # questo è una lista di poligoni che si rifà alla classe fracture(che, appunto, è una classe che rappresenta il poligono)
-        # e viene aggiornata nel metodo genfrac
+        # Creo la lista di poligoni che verra' aggiornata in genfrac
         self.fractures = []
 
-        # Lista di lista con le possibili intersezioni, aggiornata in genfrac
+        # Lista di liste con le possibili intersezioni, aggiornata in genfrac
         self.poss_intersezioni = []
 
         self.genfrac(N)
-
 
     def genfrac(self, n_to_gen):
 
@@ -61,9 +62,13 @@ class DiscreteFractureNetwork:
         normals = self.vmf_dist.sample(n_to_gen)
 
         # n_edges genera il numero di lati (un numero intero positivo) in maniera randomica tra 8 e 16
-        n_edges = np.random.random_integers(8, 16, n_to_gen)
-        # DA IMPLEMENTARE ANCHE IL CASO IN CUI VOGLIA FISSARE IL NUMERO DI VERTICI DEI POLIGONI
-        # (ad esempio voglio creare solo esagoni, solo ottagoni, ecc...)
+        # oppure li fissa a un valore se specificato nel costruttore
+
+        if self.flag_n_edges == 0:
+            n_edges = np.random.random_integers(8, 16, n_to_gen)
+        else:
+            n_edges = [self.flag_n_edges] * n_to_gen
+
 
         # alpha_angles sarebbe l'angolo di rotazione attorno alla normale (ovviamente sempre sul piano)
         alpha_angles = np.random.uniform(0, 2 * np.pi, n_to_gen)
@@ -88,24 +93,30 @@ class DiscreteFractureNetwork:
                                                                 # maniera meno dispendiosa senza richiamare il metodo
                                                                 # possibili_intersezioni()
 
-
-
     def rimuovi(self, v):
         '''
         Rimuove le fratture nelle posizioni indicate dal vettore v (tenendo conto che l'indice parte da 0)
         Ad esempio se v = [2,4] il metodo rimuove il terzo poligono e il quinto
         '''
 
-        v = np.sort(v)      # ordino il vettore così da poter usare il metodo senza problemi
+        # DA CONTROLLARE
+        v = np.sort(v).tolist()
+        for i in range(len(v)-1):  # rimuove tutte le ripetizioni
+            if v[i] == v[i+1]:
+                v.pop(i)
+                i = i - 1
+
         for i in range(len(v)):
             self.fractures.pop(v[- i - 1])
+            self.poss_intersezioni.pop(v[- i - 1])
+            for j in range(self.N-1):  # self.N-1 perché abbiamo già tolto una lista
+                self.poss_intersezioni[j].remove(v[- i - 1])  # nella j-esima lista togliamo l'elemento v[- i - 1]
+                for k in range(len(self.poss_intersezioni[j])):
+                    if self.poss_intersezioni[j][k] > v[- i - 1]:  #devo salavare nel for di prima l'elemento che ho
+                        self.poss_intersezioni[j][k] = self.poss_intersezioni[j][k] - 1
 
         # Aggiorno gli attributi
         self.N = self.N - len(v)
-        self.poss_intersezioni = self.possibili_intersezioni()      # DA MODIFICARE: dobbiamo aggiornare l'attributo in
-                                                                # maniera meno dispendiosa senza richiamare il metodo
-                                                                # possibili_intersezioni()
-
 
     def possibili_intersezioni(self):
         '''
@@ -113,7 +124,9 @@ class DiscreteFractureNetwork:
         Ritorna una lista di liste come richiesto al punto 9
         '''
 
-        l = [[]] * self.N
+        l = []
+        for i in range(self.N):
+            l.append([])
 
         for i in range(self.N - 1):
             for j in range(i + 1, self.N):
@@ -128,8 +141,7 @@ class DiscreteFractureNetwork:
                     l[j].append(i)
         return l
 
-
-    def scrittura1(self):   # il metodo funziona e scrive su file, forse e' da migliorare la formattazione
+    def scrittura1(self):
         '''
         Metodo per scrivere su file come richiesto al punto 7
         '''
@@ -142,7 +154,6 @@ class DiscreteFractureNetwork:
                     print(self.fractures[i].vertici[0, j],
                           self.fractures[i].vertici[1, j],
                           self.fractures[i].vertici[2, j], file=f1)
-
 
     def scrittura2(self):   # il metodo funziona e scrive su file, forse e' da migliorare la formattazione
         '''
@@ -157,8 +168,6 @@ class DiscreteFractureNetwork:
                 somma_vertici = somma_vertici + self.fractures[i].n
             print(somma_vertici, file=f2)
 
-            # print(sum(???), file=f2)  # potrebbe funzionare anche così??? eviterei un ciclo for
-
             indice = 0
             for i in range(self.N):
                 print(i, self.fractures[i].n, indice, file=f2)
@@ -169,8 +178,6 @@ class DiscreteFractureNetwork:
                     print(self.fractures[i].vertici[0, j],
                           self.fractures[i].vertici[1, j],
                           self.fractures[i].vertici[2, j], file=f2)
-
-
 
     def visual3D(self):
         '''
@@ -201,10 +208,17 @@ class DiscreteFractureNetwork:
         fig_3d_alltogether = go.Figure(data=all_polygons)
         poff.plot(fig_3d_alltogether)
 
-r = DiscreteFractureNetwork(6, 0, 5, 0, 5, 0, 5, 2, 2, 3, 2, np.array([[0.], [0.], [1.]]))
+
+r = DiscreteFractureNetwork(10, 0, 10, 0, 10, 0, 10, 2, 1, 2, 2, np.array([[0.], [0.], [1.]]), 8)
 # r.scrittura1()
-# r.visual3D()
-r.scrittura2()
+r.visual3D()
+# r.scrittura2()
+# print(r.poss_intersezioni)
+# r.rimuovi([0,0,1])
+# print("Indici aggiornati")
+# print(r.poss_intersezioni)
+
+
 
 
 
