@@ -2,15 +2,20 @@
 #include <stdlib.h>
 #include<math.h>
 
-// La fattorizzazione e' corretta.
-// Ora dobbiamo implementare forward and backward substitution e quanto necessario per risolvere un sistema lineare.
-// Scriviamo tutto in un unico main? O scriviamo varie funzioni per spezzare il codice?
+/*
+Il codice e' corretto, puo' sicuramente essere migliorato in efficienza e
+posso fare piu' controlli su scanf e allocazione dinamica.
+Posso modificare l'inserimento del termine noto b in lettura (ad esempio da file)
+*/
+
+double* solve_backward(double**, double*,double*, int);
+double* solve_forward(double**, double*,double*, int);
 
 int main()
 {
     int ndim, i, j, k, ind_pivot;   // ndim -> dimensione della matrice
-    double** A = NULL;              // A -> matrice da fattorizzare
-    double *tmp = NULL;
+    double **A = NULL;              // A -> matrice da fattorizzare
+    double *p_tmp, *x, *y, *b, *diag;
     int *pivot = NULL;
     double el_pivot;
 
@@ -22,11 +27,18 @@ int main()
     // Data la dimensione alloco dinamicamente la matrice e il vettore pivot
 
     A = (double**)malloc(ndim*sizeof(double *));
+    pivot = (int*)malloc((ndim - 1)*sizeof(double));
+    x = (double*)malloc(ndim*sizeof(double));
+    y = (double*)malloc(ndim*sizeof(double));
+    b = (double*)malloc(ndim*sizeof(double));
+    diag = (double*)malloc(ndim*sizeof(double));
+
+
     for(i = 0; i < ndim; i++)
     {
         A[i] = (double*)malloc(ndim*sizeof(double));
+        b[i] = 1.0;       // posso inizializzare il vettore di termini noti b come voglio: qua lo inizializzo con tutti elementi uguali a 1
     }
-    pivot = (int*)malloc((ndim - 1)*sizeof(double));
 
     // Stampo la matrice per verificarne la correttezza
 
@@ -61,9 +73,9 @@ int main()
 
         if(pivot[k] != k)
         {
-            tmp = A[k];
+            p_tmp = A[k];
             A[k] = A[pivot[k]];
-            A[pivot[k]] = tmp;
+            A[pivot[k]] = p_tmp;
         }
 
         // Procedo con l'algoritmo di eliminazione Gaussiana
@@ -99,5 +111,91 @@ int main()
     for(i = 0; i < ndim - 1; i++)
         printf("%d ", pivot[i]);
 
+    /*
+    Procedo con la risoluzione del sistema lineare Ax=b sfruttando la fattorizzazione PA=LU
+    che mi porta a risolvere due sistemi triangolari Ly=Pb e Ux=y
+    */
+
+    // Salvo la diagonale di A, la imposto uguale a tutti 1 e permuto b secondo le informazioni del vettore pivot
+    for (i = 0; i < ndim; i++)
+        {
+            diag[i] = A[i][i];
+            A[i][i] = 1.0;
+
+            if(i != ndim-1 && pivot[i] != i)
+                b[i] = b[pivot[i]];
+        }
+
+    y = solve_forward(A, b, y, ndim);
+
+    // Reimposto la diagonale di A
+
+    for (i = 0; i < ndim; i++)
+        {
+            A[i][i] = diag[i];
+        }
+    x = solve_backward(A, y, x, ndim);
+
+    // Stampo il vettore soluzione x (come vettore riga)
+
+    printf("\nLa soluzione del sistema e' (rappresentata come vettore riga):\n");
+    for (i = 0; i < ndim; i++)
+        {
+            printf("%f ", x[i]);
+        }
+
+    // Libero la memoria
+
+    free(A);
+    free(x);
+    free(y);
+    free(b);
+    free(diag);
+    free(pivot);
+
     return 0;
+}
+
+double* solve_backward(double** U, double* b, double* x, int n)
+{
+    /*
+    Risolve il sistema Ux=b con U matrice n x n triangolare superiore non singolare
+    usando la backward substitution.
+    */
+
+    int i,j;
+    double tmp;
+
+    x[n-1] = b[n-1]/U[n-1][n-1];
+    for(i = n-2; i >= 0; i--)
+    {
+        tmp = 0.0;
+        for(j = i+1; j < n ; j++)
+            tmp += U[i][j]*x[j];
+
+        x[i] = (b[i] - tmp)/U[i][i];
+    }
+    return x;
+}
+
+double* solve_forward(double** L, double* b, double* x, int n)
+{
+    /*
+    Risolve il sistema Lx=b con L matrice n x n triangolare inferiore non singolare
+    usando la forward substitution.
+    */
+
+    int i,j;
+    double tmp;
+
+    x[0] = b[0]/L[0][0];
+    for(i = 1; i < n; i++)
+    {
+        tmp = 0.0;
+        for(j = 0; j < i ;j++)
+            tmp += L[i][j]*x[j];
+
+        x[i] = (b[i] - tmp)/L[i][i];
+    }
+    return x;
 }
