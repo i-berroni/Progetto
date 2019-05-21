@@ -3,9 +3,13 @@
 #include<math.h>
 
 /*
-Il codice e' corretto, puo' sicuramente essere migliorato in efficienza e
-posso fare piu' controlli su scanf e allocazione dinamica.
-Posso modificare l'inserimento del termine noto b in lettura (ad esempio da file)
+Programma che richiede di inserire un intero positivo ndim e costruisce la matrice di Hilbert A quadrata
+di dimensione ndim.
+Successivamente effettua l'eliminazione gaussiana e ricava la fattorizzazione PA=LU della matrice A.
+Infine usando le funzioni solve_backward e solve_forward (sostituzione in indietro e sostituzione in avanti)
+risolve il sistema lineare Ax=b, con b tale che x sia il vettore con tutti gli elementi uguali a 1.
+Sappiamo che la matrice di Hilbert e' mal condizionata, quindi piu' la dimensione ndim e' elevata,
+piu' la soluzione trovata si discosta da quella reale (il programma non e' pensato per gestire il mal condizionamento di A).
 */
 
 double* solve_backward(double**, double*,double*, int);
@@ -17,7 +21,7 @@ int main()
     double **A = NULL;              // A -> matrice da fattorizzare
     double *p_tmp, *x, *y, *b, *diag;
     int *pivot = NULL;
-    double el_pivot;
+    double el_pivot, tmp;
 
     // Leggo da standard input la dimensione della matrice
 
@@ -37,17 +41,19 @@ int main()
     for(i = 0; i < ndim; i++)
     {
         A[i] = (double*)malloc(ndim*sizeof(double));
-        b[i] = 1.0;       // posso inizializzare il vettore di termini noti b come voglio: qua lo inizializzo con tutti elementi uguali a 1
     }
 
-    // Stampo la matrice per verificarne la correttezza
+    // Stampo la matrice per verificarne la correttezza e costruisco il vettore b in maniera tale che la soluzione x sia un vettore con
+    // tutti gli elementi uguali a 1
 
     printf("\nLa matrice di Hilbert e':\n\n");
     for(i = 0; i < ndim; i++)
     {
+        b[i] = 0;
         for(j = 0; j < ndim; j++)
         {
             A[i][j] = 1.0/(i+j+1);
+            b[i] += A[i][j];
             printf("%f ", A[i][j]);
         }
         printf("\n");
@@ -123,7 +129,11 @@ int main()
             A[i][i] = 1.0;
 
             if(i != ndim-1 && pivot[i] != i)
+            {
+                tmp = b[i];
                 b[i] = b[pivot[i]];
+                b[pivot[i]] = tmp;
+            }
         }
 
     y = solve_forward(A, b, y, ndim);
@@ -199,3 +209,4 @@ double* solve_forward(double** L, double* b, double* x, int n)
     }
     return x;
 }
+
