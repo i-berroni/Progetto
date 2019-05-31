@@ -5,6 +5,7 @@ import plotly.graph_objs as go
 import plotly.offline as poff
 import dill
 import matlab_clones as mc
+import Trace
 
 
 class DiscreteFractureNetwork:
@@ -199,7 +200,6 @@ class DiscreteFractureNetwork:
         else:
             return False
 
-
     def scrittura1(self):
         """
         Metodo per scrivere su file come richiesto al punto 7
@@ -319,46 +319,62 @@ class DiscreteFractureNetwork:
         # A causa di approssimazioni non otteniamo esattamente 0 come coordinate z, ma numeri dell'ordine di grandezza
         # di 1.0e-16
 
-        # STIAMO SCRIVENDO 2 VOLTE DEL CODICE UGUALE,
-        # PUO' AVERE SENSO ITERARE 2 VOLTE CON UN FOR O USARE UN'ALTRA FUNZIONE
+        s = []
+        s.extend(self.inters_2D(p1, t, r0))
+        s.extend(self.inters_2D(p2, t, r0))
 
-        # QUANDO CAPISCO CHE POSSO NON AVERE INTERSEZIONE???
+        if len(s) == 4:
+            s.sort()
+            x1 = r0 + s[1] * t
+            x2 = r0 + s[2] * t
+            tr = Trace.Trace(p1, p2, np.array([x1, x2]).T)  # CONTINUARE DA QUA
 
-        rotMatrix_1 = np.dot(np.dot(mc.rotz(- p1.alpha), mc.roty(p1.phi - np.pi / 2)), mc.rotz(- p1.teta))
-        vertici_1 = p1.vertici
-        for i in range(p1.n):
-            vertici_1[:, i] -= p1.bar
-        vertici_1 = np.dot(rotMatrix_1, vertici_1)
-        t_1 = np.dot(rotMatrix_1, t)
-        r0_1 = np.dot(rotMatrix_1, r0 - p1.bar)
 
-        rotMatrix_2 = np.dot(np.dot(mc.rotz(- p2.alpha), mc.roty(p2.phi - np.pi / 2)), mc.rotz(- p2.teta))
-        vertici_2 = p2.vertici
-        for i in range(p2.n):
-            vertici_2[:, i] -= p2.bar
-        vertici_2 = np.dot(rotMatrix_2, vertici_2)
-        t_2 = np.dot(rotMatrix_2, t)
-        r0_2 = np.dot(rotMatrix_2, r0 - p2.bar)
+    def inters_2D(self, p, t, r0):
+        """
 
-        # Stampo per verifica (da togliere)
-        print(vertici_1)
-        print(r0_1)
-        print(vertici_2)
-        print(r0_2)
+        :param p:
+        :param t:
+        :param r0:
+        :return:
+        """
 
-        # Effettuate le rotazioni, per ogni poligono dobbiamo trovare la traccia effettiva e salvarla
+        # RUOTO E MI RICONDUCO SUL PIANO
+        rotMatrix = np.dot(np.dot(mc.rotz(- p.alpha), mc.roty(p.phi - np.pi / 2)), mc.rotz(- p.teta))
+        vertici = p.vertici
+        for i in range(p.n):
+            vertici[:, i] -= p.bar
+        vertici = np.dot(rotMatrix, vertici)
+        t = np.dot(rotMatrix, t)
+        r0 = np.dot(rotMatrix, r0 - p.bar)
+
+        # While PER TROVARE LE INTERSEZIONI
+        conta = 0
+        i = 0
+        s = []
+        while conta < 2 and i < p.n:
+            j = (i + 1) % p.n
+            A = np.array([[t[0], p.vertici[0, i] - p.vertici[0, j]], [t[1], p.vertici[1, i] - p.vertici[1, j]]])
+            b = np.array([p.vertici[0, i] - r0[0], p.vertici[1, i] - r0[1]])
+            x = np.linalg.solve(A, b)  # NON COMPRENDE IL CASO IN CUI SEGMENTO E RETTA SIANO PARALLELE
+            if x[1] >= 0 and x[1] <= 1:
+                conta += 1
+                s.append(x[0])
+            i += 1
+
+        return s
 
 
 r = DiscreteFractureNetwork(5, 3, 10, -2, 8, 2, 9, 2, 4, 4, 0.1, np.array([[0.5], [2.], [1.]]), 8)
 # r.scrittura1()
 # r.visual3D()
 # r.scrittura2()
-print(r.poss_intersezioni)
-r.rimuovi([0, 0, 1])
+# print(r.poss_intersezioni)
+# r.rimuovi([0, 0, 1])
 # print("Indici aggiornati")
-print(r.poss_intersezioni)
-r.genfrac(2)
-print(r.poss_intersezioni)
+# print(r.poss_intersezioni)
+# r.genfrac(2)
+# print(r.poss_intersezioni)
 
 # r.gen_trace(r.fractures[0], r.fractures[1])
 
