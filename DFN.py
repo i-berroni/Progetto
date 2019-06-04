@@ -275,7 +275,7 @@ class DiscreteFractureNetwork:
             all_polygons.append(perimetro)
             all_polygons.append(area)
 
-        # Plot delle tracce (??????)
+        # Plot delle tracce
 
         for i in range(len(self.traces)):
             x = self.traces[i].estremi[0, :].tolist()
@@ -337,8 +337,7 @@ class DiscreteFractureNetwork:
         :param p2: oggetto della classe Fracture
         :return: oggetto della classe Trace
         """
-
-        # PROBABILMENTE SBAGLIATO
+        
         # Calcoliamo la retta d'intersezione tra i poligoni
         # X(s) = r0 + s*t, dove s e' il parametro libero
         t = np.cross(p1.vn, p2.vn)  # direzione della retta
