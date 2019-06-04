@@ -5,7 +5,7 @@ import plotly.graph_objs as go
 import plotly.offline as poff
 import dill
 import matlab_clones as mc
-import Trace
+import trace
 
 
 class DiscreteFractureNetwork:
@@ -116,12 +116,16 @@ class DiscreteFractureNetwork:
             self.fractures.append(tmp)
 
         # Aggiorno gli attributi: se sto creando una nuova istanza chiamo il metodo possibili_intersezioni,
-        # altrimenti se sto aggiungendo poligoni ad una istanza già creata, aggiorno la lista di adiacenza
+        # altrimenti se sto aggiungendo poligoni ad una istanza già creata, aggiorno le strutture dati
         # in modo più efficiente
         if self.N == 0:
             self.N += n_to_gen
             self.poss_intersezioni = self.possibili_intersezioni()
-        else:
+            for i in range(self.N):
+                self.frac_traces.append([])
+            self.intersezioni = self.intersezionI()
+
+        else:  # DA AGGIORNARE TUTTE LE STRUTTURE DATI
             for i in range(n_to_gen):
                 self.poss_intersezioni.append([])
             for i in range(self.N):
@@ -261,15 +265,30 @@ class DiscreteFractureNetwork:
             area = go.Mesh3d(x=x, y=y, z=z, color='#FFB6C1', opacity=0.60)
 
             # Per controllare se un poligono e' parallelo a un piano coordinato che tolleranza devo usare???
-            if np.linalg.norm(self.fractures[i].vn - np.array([1, 0, 0])) < 1.0e-15:
+            if np.linalg.norm(self.fractures[i].vn - np.array([1, 0, 0])) < 1.0e-10:
                 area.delaunayaxis = 'x'
-            elif np.linalg.norm(self.fractures[i].vn - np.array([0, 1, 0])) < 1.0e-15:
+            elif np.linalg.norm(self.fractures[i].vn - np.array([0, 1, 0])) < 1.0e-10:
                 area.delaunayaxis = 'y'
-            elif np.linalg.norm(self.fractures[i].vn - np.array([0, 0, 1])) < 1.0e-15:
+            elif np.linalg.norm(self.fractures[i].vn - np.array([0, 0, 1])) < 1.0e-10:
                 area.delaunayaxis = 'z'
 
             all_polygons.append(perimetro)
             all_polygons.append(area)
+
+        # Plot delle tracce (??????)
+
+        for i in range(len(self.traces)):
+            x = self.traces[i].estremi[0, :].tolist()
+            y = self.traces[i].estremi[1, :].tolist()
+            z = self.traces[i].estremi[2, :].tolist()
+
+            segmento = go.Scatter3d(x=x, y=y, z=z,
+                                     mode='lines',
+                                     marker=dict(
+                                         color='black'
+                                     )
+                                     )
+            all_polygons.append(segmento)
 
         fig_3d_alltogether = go.Figure(data=all_polygons)
         poff.plot(fig_3d_alltogether)
@@ -282,17 +301,33 @@ class DiscreteFractureNetwork:
         with open('DFN.pkl', 'wb') as f3:
             dill.dump(self, f3)
 
-    def intersezioni(self):
+    def intersezionI(self):
         """
         Metodo per determinare le effettive intersezioni tra i poligoni
         :return: lista di liste tale che l'i-esima lista contenga gli indici delle fratture del DFN effettivamente
         intersecanti l'i-esimo poligono
         """
 
-        # Creo una lista self.N liste vuote
+        # Creo una lista di self.N liste vuote
         l = []
         for i in range(self.N):
             l.append([])
+
+        poss_copia = self.poss_intersezioni.copy()
+
+        for i in range(self.N - 1):
+            for j in poss_copia[i]:
+                tr = self.gen_trace(self.fractures[i], self.fractures[j])
+                if tr is not None:
+                    self.traces.append(tr)
+                    l[i].append(j)
+                    l[j].append(i)
+                    self.frac_traces[i].append(len(self.traces) - 1)
+                    self.frac_traces[j].append(len(self.traces) - 1)
+                poss_copia[i].remove(j)
+                poss_copia[j].remove(i)
+        return l
+
 
 
     def gen_trace(self, p1, p2):
@@ -303,16 +338,17 @@ class DiscreteFractureNetwork:
         :return: oggetto della classe Trace
         """
 
+        # PROBABILMENTE SBAGLIATO
         # Calcoliamo la retta d'intersezione tra i poligoni
         # X(s) = r0 + s*t, dove s e' il parametro libero
         t = np.cross(p1.vn, p2.vn)  # direzione della retta
-        A = np.array([p1.vn, p2.vn, t])
-        b = np.zeros(3)
-        b[0] = np.dot(p1.vertici[:, 0], p1.vn)
-        b[1] = np.dot(p2.vertici[:, 0], p2.vn)
-        b[2] = 0
-        r0 = np.linalg.solve(A, b)  # un generico punto della retta
+        A = np.array([p1.vn, p2.vn, t]) # ???
+        b = np.array([np.dot(p1.vertici[:, 0], p1.vn), np.dot(p2.vertici[:, 0], p2.vn), 0])
+        # b[0] = np.dot(p1.vertici[:, 0], p1.vn)
+        # b[1] = np.dot(p2.vertici[:, 0], p2.vn)
+        # b[2] = 0
 
+        r0 = np.linalg.solve(A, b)  # un generico punto della retta
         # Ruotiamo il poligono p1 per ricondurci sul piano
         # Sul file c'è scritto di ruotare e poi traslare, mentre noi abbiamo prima traslato e poi ruotato,
         # in modo da avere la configurazione iniziale sul piano xy
@@ -321,14 +357,18 @@ class DiscreteFractureNetwork:
 
         s = []
         s.extend(self.inters_2D(p1, t, r0))
-        s.extend(self.inters_2D(p2, t, r0))
+        if len(s) == 2:  # controlliamo se c'e' intersezione con il primo poligono, altrimenti non facciamo niente
+            s.extend(self.inters_2D(p2, t, r0))
 
-        if len(s) == 4:
-            s.sort()
-            x1 = r0 + s[1] * t
-            x2 = r0 + s[2] * t
-            tr = Trace.Trace(p1, p2, np.array([x1, x2]).T)  # CONTINUARE DA QUA
+            if len(s) == 4:
+                s.sort()
+                x1 = r0 + s[1] * t
+                x2 = r0 + s[2] * t
+                tr = trace.Trace(p1, p2, np.array([x1, x2]).T)
+                return tr
 
+        else:
+            return None  # se non c'e' traccia restituiamo None
 
     def inters_2D(self, p, t, r0):
         """
@@ -341,7 +381,9 @@ class DiscreteFractureNetwork:
 
         # RUOTO E MI RICONDUCO SUL PIANO
         rotMatrix = np.dot(np.dot(mc.rotz(- p.alpha), mc.roty(p.phi - np.pi / 2)), mc.rotz(- p.teta))
-        vertici = p.vertici
+
+        vertici = p.vertici.copy()
+
         for i in range(p.n):
             vertici[:, i] -= p.bar
         vertici = np.dot(rotMatrix, vertici)
@@ -354,10 +396,10 @@ class DiscreteFractureNetwork:
         s = []
         while conta < 2 and i < p.n:
             j = (i + 1) % p.n
-            A = np.array([[t[0], p.vertici[0, i] - p.vertici[0, j]], [t[1], p.vertici[1, i] - p.vertici[1, j]]])
-            b = np.array([p.vertici[0, i] - r0[0], p.vertici[1, i] - r0[1]])
+            A = np.array([[t[0], vertici[0, i] - vertici[0, j]], [t[1], vertici[1, i] - vertici[1, j]]])
+            b = np.array([vertici[0, i] - r0[0], vertici[1, i] - r0[1]])
             x = np.linalg.solve(A, b)  # NON COMPRENDE IL CASO IN CUI SEGMENTO E RETTA SIANO PARALLELE
-            if x[1] >= 0 and x[1] <= 1:
+            if 0 <= x[1] <= 1:
                 conta += 1
                 s.append(x[0])
             i += 1
@@ -365,7 +407,7 @@ class DiscreteFractureNetwork:
         return s
 
 
-r = DiscreteFractureNetwork(5, 3, 10, -2, 8, 2, 9, 2, 4, 4, 0.1, np.array([[0.5], [2.], [1.]]), 8)
+# r = DiscreteFractureNetwork(5, 3, 10, -2, 8, 2, 9, 2, 4, 4, 0.1, np.array([[0.5], [2.], [1.]]), 8)
 # r.scrittura1()
 # r.visual3D()
 # r.scrittura2()
