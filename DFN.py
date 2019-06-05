@@ -123,16 +123,24 @@ class DiscreteFractureNetwork:
             self.poss_intersezioni = self.possibili_intersezioni()
             for i in range(self.N):
                 self.frac_traces.append([])
-            self.intersezioni = self.intersezionI()
+            self.intersezioni = self.reali_intersezioni()
 
-        else:  # DA AGGIORNARE TUTTE LE STRUTTURE DATI
+        else:
             for i in range(n_to_gen):
                 self.poss_intersezioni.append([])
+                self.intersezioni.append([])
+                self.frac_traces.append([])
+
+            # Confrontiamo le vecchie fratture con le nuove
             for i in range(self.N):
                 for j in range(n_to_gen):
-                    if self.inters_BB(self.fractures[i], self.fractures[self.N + j]) is True:
-                        self.poss_intersezioni[i].append(self.N + j)
-                        self.poss_intersezioni[self.N + j].append(i)
+                    self.aggiorna_int(i, self.N + j)
+
+            # Confrontiamo le nuove fratture tra loro
+            for i in range(self.N, self.N + n_to_gen - 1):
+                for j in range(i + 1, self.N + n_to_gen):
+                    self.aggiorna_int(i, j)
+
             self.N += n_to_gen
 
     def rimuovi(self, v):
@@ -154,12 +162,36 @@ class DiscreteFractureNetwork:
         for i in v:
             self.fractures.pop(i)
             self.poss_intersezioni.pop(i)
+            self.intersezioni.pop(i)
+            for j in range(len(self.frac_traces[i])):
+                tr = self.frac_traces[i][j]
+                if tr.i1 == i:
+                    self.frac_traces[tr.i2].remove(tr)
+                else:
+                    self.frac_traces[tr.i1].remove(tr)
+                self.traces.remove(tr)
+
+            self.frac_traces.pop(i)
             for j in range(len(self.poss_intersezioni)):
+
                 if i in self.poss_intersezioni[j]:
+
+                    if i in self.intersezioni[j]:
+                        self.intersezioni[j].remove(i)
+                    for k in range(len(self.intersezioni[j])):
+                        if self.intersezioni[j][k] > i:  # rinumero
+                            self.intersezioni[j][k] -= 1
+
                     self.poss_intersezioni[j].remove(i)
                 for k in range(len(self.poss_intersezioni[j])):
                     if self.poss_intersezioni[j][k] > i:  # rinumero
                         self.poss_intersezioni[j][k] -= 1
+
+            for tr in self.traces:
+                if tr.i1 > i:
+                    tr.i1 -= 1
+                if tr.i2 > i:
+                    tr.i2 -= 1
 
         # Aggiorno gli attributi
         self.N = self.N - len(v)
@@ -244,7 +276,7 @@ class DiscreteFractureNetwork:
 
     def visual3D(self):
         """
-        Metodo per la visualizzazione grafica delle fratture
+        Metodo per la visualizzazione grafica delle fratture e delle tracce
         """
 
         all_polygons = []
@@ -275,8 +307,6 @@ class DiscreteFractureNetwork:
             all_polygons.append(perimetro)
             all_polygons.append(area)
 
-        # Plot delle tracce
-
         for i in range(len(self.traces)):
             x = self.traces[i].estremi[0, :].tolist()
             y = self.traces[i].estremi[1, :].tolist()
@@ -301,7 +331,7 @@ class DiscreteFractureNetwork:
         with open('DFN.pkl', 'wb') as f3:
             dill.dump(self, f3)
 
-    def intersezionI(self):
+    def reali_intersezioni(self):
         """
         Metodo per determinare le effettive intersezioni tra i poligoni
         :return: lista di liste tale che l'i-esima lista contenga gli indici delle fratture del DFN effettivamente
@@ -310,38 +340,44 @@ class DiscreteFractureNetwork:
 
         # Creo una lista di self.N liste vuote
         l = []
+        poss_copia = []
         for i in range(self.N):
             l.append([])
-
-        poss_copia = self.poss_intersezioni.copy()
+            poss_copia.append([])
+            poss_copia[i] = self.poss_intersezioni[i].copy()
 
         for i in range(self.N - 1):
-            for j in poss_copia[i]:
-                tr = self.gen_trace(self.fractures[i], self.fractures[j])
-                if tr is not None:
-                    self.traces.append(tr)
-                    l[i].append(j)
-                    l[j].append(i)
-                    self.frac_traces[i].append(len(self.traces) - 1)
-                    self.frac_traces[j].append(len(self.traces) - 1)
-                poss_copia[i].remove(j)
-                poss_copia[j].remove(i)
+            for j in range(len(poss_copia[i])):
+                k = poss_copia[i][j]
+                if k != -1:
+                    tr = self.gen_trace(i, k)
+                    if tr is not None:
+                        self.traces.append(tr)
+                        l[i].append(k)
+                        l[k].append(i)
+                        self.frac_traces[i].append(tr)
+                        self.frac_traces[k].append(tr)
+                    poss_copia[i][j] = -1
+                    poss_copia[k][poss_copia[k].index(i)] = -1
         return l
 
 
 
-    def gen_trace(self, p1, p2):
+    def gen_trace(self, i1, i2):
         """
         Metodo per calcolare la traccia tra due poligoni
         :param p1: oggetto della classe Fracture
         :param p2: oggetto della classe Fracture
         :return: oggetto della classe Trace
         """
-        
+
+        p1 = self.fractures[i1]
+        p2 = self.fractures[i2]
+        # PROBABILMENTE SBAGLIATO
         # Calcoliamo la retta d'intersezione tra i poligoni
         # X(s) = r0 + s*t, dove s e' il parametro libero
         t = np.cross(p1.vn, p2.vn)  # direzione della retta
-        A = np.array([p1.vn, p2.vn, t]) # ???
+        A = np.array([p1.vn, p2.vn, t])
         b = np.array([np.dot(p1.vertici[:, 0], p1.vn), np.dot(p2.vertici[:, 0], p2.vn), 0])
         # b[0] = np.dot(p1.vertici[:, 0], p1.vn)
         # b[1] = np.dot(p2.vertici[:, 0], p2.vn)
@@ -363,7 +399,7 @@ class DiscreteFractureNetwork:
                 s.sort()
                 x1 = r0 + s[1] * t
                 x2 = r0 + s[2] * t
-                tr = trace.Trace(p1, p2, np.array([x1, x2]).T)
+                tr = trace.Trace(p1, p2, i1, i2, np.array([x1, x2]).T)
                 return tr
 
         else:
@@ -404,6 +440,21 @@ class DiscreteFractureNetwork:
             i += 1
 
         return s
+
+    def aggiorna_int(self, i, j):
+
+        fr1 = self.fractures[i]
+        fr2 = self.fractures[j]
+        if self.inters_BB(fr1, fr2) is True:
+            self.poss_intersezioni[i].append(j)
+            self.poss_intersezioni[j].append(i)
+            tr = self.gen_trace(i, j)
+            if tr is not None:
+                self.traces.append(tr)
+                self.frac_traces[i].append(tr)
+                self.frac_traces[j].append(tr)
+                self.intersezioni[i].append(j)
+                self.intersezioni[j].append(i)
 
 
 # r = DiscreteFractureNetwork(5, 3, 10, -2, 8, 2, 9, 2, 4, 4, 0.1, np.array([[0.5], [2.], [1.]]), 8)
