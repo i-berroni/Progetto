@@ -25,10 +25,9 @@ class DiscreteFractureNetwork:
         :param k: parametro di concentrazione della legge Von Mises-Fisher
         :param mode_vector: punto medio della legge Von Mises-Fisher
         :param fixed_n_edges: numero fissato dei lati dei poligoni (> 2); se non specificato ogni poligono ha
-        un numero casuale di lati da 8 a 16 (distribuiti uniformemente)
+                              un numero casuale di lati da 8 a 16 (distribuiti uniformemente)
         """
 
-        # N = numero delle fratture richieste
         self.N = 0  # il valore verrà poi aggiornato nel metodo genfrac
 
         # Definisco gli estremi del dominio del DFN
@@ -76,14 +75,15 @@ class DiscreteFractureNetwork:
 
     def genfrac(self, n_to_gen):
         """
-        Genera n_to_gen fratture e le stampa
+        Genera n_to_gen fratture, aggiornando opportunamente tutte le strutture dati del DFN
         :param n_to_gen: numero di fratture da generare
         """
 
         # Crea un vettore di n_togen semiassi (maggiori) dell'asse X nell'intervallo [radius_l,radius_u]
         semiaxes_x = self.pl_dist.sample(n_to_gen)
 
-        # ars è aspect ratio, ovvero il rapporto tra semiasse delle X e semiasse delle Y, dato da un'uniforme definita in [1,3]
+        # ars è aspect ratio, ovvero il rapporto tra semiasse delle X e semiasse delle Y,
+        # dato da un'uniforme definita in [1,3]
         ars = np.random.uniform(1, 3, n_to_gen)
 
         # normals mi dà una "matrice" 3xn_togen con le normali come vettori colonna
@@ -97,7 +97,6 @@ class DiscreteFractureNetwork:
         else:
             n_edges = [self.fixed_n_edges] * n_to_gen
 
-
         # alpha_angles sarebbe l'angolo di rotazione attorno alla normale (ovviamente sempre sul piano)
         alpha_angles = np.random.uniform(0, 2 * np.pi, n_to_gen)
 
@@ -105,10 +104,6 @@ class DiscreteFractureNetwork:
         centers = np.random.uniform(np.array([self.Xmin, self.Ymin, self.Zmin]),
                                     np.array([self.Xmax, self.Ymax, self.Zmax]),
                                     (n_to_gen, 3))
-
-        # print("Qui di seguito sono i valori:\n\n","\n\nIl vettore dei semiassi:\n\n",semiaxes_x,"\n\nAspect Ratio:\n\n",ars,
-        #      "\n\nVettore delle normali:\n\n",normals,"\n\nVettore del numero dei lati\n\n",n_edges,
-        # "\n\nVettore degli angoli di rotazione attorno alla normale, sul piano:\n\n",alpha_angles,"\n\nVettore dei baricentri dei poligoni:\n\n",centers)
 
         # Creo i poligoni e li inserisco nella lista
         for i in range(n_to_gen):
@@ -145,8 +140,7 @@ class DiscreteFractureNetwork:
 
     def rimuovi(self, v):
         """
-        Rimuove le fratture nelle posizioni indicate dalla lista v (tenendo conto che l'indice parte da 0)
-        Ad esempio se v = [2,4] il metodo rimuove il terzo poligono e il quinto
+        Rimuove le fratture nelle posizioni indicate dalla lista v, e aggiorna opportunamente le strutture dati del DFN
         :param v: lista contenente gli indici dei poligoni da rimuovere
         """
 
@@ -361,32 +355,23 @@ class DiscreteFractureNetwork:
                     poss_copia[k][poss_copia[k].index(i)] = -1
         return l
 
-
-
     def gen_trace(self, i1, i2):
         """
         Metodo per calcolare la traccia tra due poligoni
-        :param p1: oggetto della classe Fracture
-        :param p2: oggetto della classe Fracture
-        :return: oggetto della classe Trace
+        :param i1, i2: indici dei poligoni
+        :return: oggetto della classe Trace (se la traccia esiste); None se la traccia non esiste
         """
 
         p1 = self.fractures[i1]
         p2 = self.fractures[i2]
-        # PROBABILMENTE SBAGLIATO
+
         # Calcoliamo la retta d'intersezione tra i poligoni
-        # X(s) = r0 + s*t, dove s e' il parametro libero
         t = np.cross(p1.vn, p2.vn)  # direzione della retta
         A = np.array([p1.vn, p2.vn, t])
         b = np.array([np.dot(p1.vertici[:, 0], p1.vn), np.dot(p2.vertici[:, 0], p2.vn), 0])
-        # b[0] = np.dot(p1.vertici[:, 0], p1.vn)
-        # b[1] = np.dot(p2.vertici[:, 0], p2.vn)
-        # b[2] = 0
 
         r0 = np.linalg.solve(A, b)  # un generico punto della retta
         # Ruotiamo il poligono p1 per ricondurci sul piano
-        # Sul file c'è scritto di ruotare e poi traslare, mentre noi abbiamo prima traslato e poi ruotato,
-        # in modo da avere la configurazione iniziale sul piano xy
         # A causa di approssimazioni non otteniamo esattamente 0 come coordinate z, ma numeri dell'ordine di grandezza
         # di 1.0e-16
 
@@ -396,22 +381,28 @@ class DiscreteFractureNetwork:
             s.extend(self.inters_2D(p2, t, r0))
 
             if len(s) == 4:
-                s.sort()
-                x1 = r0 + s[1] * t
-                x2 = r0 + s[2] * t
-                tr = trace.Trace(p1, p2, i1, i2, np.array([x1, x2]).T)
-                return tr
+                q = np.argsort(s)
+                if (q[0] == 0 and q[1] == 1) or (q[0] == 2 and q[1] == 3):
+                    return None
+                else:
+                    s.sort()
+                    x1 = r0 + s[1] * t
+                    x2 = r0 + s[2] * t
+                    tr = trace.Trace(p1, p2, i1, i2, np.array([x1, x2]).T)
+                    return tr
 
         else:
             return None  # se non c'e' traccia restituiamo None
 
     def inters_2D(self, p, t, r0):
         """
-
-        :param p:
-        :param t:
-        :param r0:
-        :return:
+        Metodo che, data una retta in forma parametrica (X(s) = r0 + s*t) e una frattura, determina se si intersecano
+        in un segemento e ne calcola gli estremi
+        :param p: oggetto della classe Fracture
+        :param t: direzione della retta
+        :param r0: punto della retta
+        :return: lista s con i due nuemeri reali [s1, s2] che parametrizzano il segmento se c'e' intersezione;
+                 lista vuota se non c'e' intersezione
         """
 
         # RUOTO E MI RICONDUCO SUL PIANO
@@ -425,7 +416,7 @@ class DiscreteFractureNetwork:
         t = np.dot(rotMatrix, t)
         r0 = np.dot(rotMatrix, r0 - p.bar)
 
-        # While PER TROVARE LE INTERSEZIONI
+        # While per trovare le intersezioni
         conta = 0
         i = 0
         s = []
@@ -433,12 +424,24 @@ class DiscreteFractureNetwork:
             j = (i + 1) % p.n
             A = np.array([[t[0], vertici[0, i] - vertici[0, j]], [t[1], vertici[1, i] - vertici[1, j]]])
             b = np.array([vertici[0, i] - r0[0], vertici[1, i] - r0[1]])
-            x = np.linalg.solve(A, b)  # NON COMPRENDE IL CASO IN CUI SEGMENTO E RETTA SIANO PARALLELE
-            if 0 <= x[1] <= 1:
-                conta += 1
-                s.append(x[0])
-            i += 1
+            if - 1.0e-10 <= np.linalg.det(A) <= 1.0e-10:
 
+                s1 = (vertici[0, i] - r0[0]) / t[0]
+                s2 = (vertici[1, i] - r0[1]) / t[1]
+                if abs(s1 - s2) < 1.0e-10:
+                    s.append(s1)
+                    s2 = (vertici[0, j] - r0[0]) / t[0]
+                    s.append(s2)
+                    return s
+                i += 1
+            else:
+                x = np.linalg.solve(A, b)  # NON COMPRENDE IL CASO IN CUI SEGMENTO E RETTA SIANO PARALLELE
+                if 0 <= x[1] <= 1:
+                    conta += 1
+                    s.append(x[0])
+                i += 1
+
+        s.sort()
         return s
 
     def aggiorna_int(self, i, j):
@@ -456,42 +459,3 @@ class DiscreteFractureNetwork:
                 self.intersezioni[i].append(j)
                 self.intersezioni[j].append(i)
 
-
-# r = DiscreteFractureNetwork(5, 3, 10, -2, 8, 2, 9, 2, 4, 4, 0.1, np.array([[0.5], [2.], [1.]]), 8)
-# r.scrittura1()
-# r.visual3D()
-# r.scrittura2()
-# print(r.poss_intersezioni)
-# r.rimuovi([0, 0, 1])
-# print("Indici aggiornati")
-# print(r.poss_intersezioni)
-# r.genfrac(2)
-# print(r.poss_intersezioni)
-
-# r.gen_trace(r.fractures[0], r.fractures[1])
-
-# Codice per testare salvataggio su file .pkl
-# r.save()
-# with open('DFN.pkl', 'rb') as f4:
-#     r1 = dill.load(f4)
-# r1.visual3D()
-
-
-'''
-# Creo un oggetto dove inizializzo variabili che decido io
-# e poi modifico il metodo di genfrac
-# per fargli stampare i dati dell'asse x
-r = DiscreteFractureNetwork(3, 0, 5, 0, 5, 0, 5, 2, 2, 3, 2, np.array([[0.], [0.], [1.]]))
-print(r.fractures)
-print(r.N)
-print(r.poss_intersezioni)
-r.genfrac(2)
-print(r.fractures)
-print(r.N)
-print(r.poss_intersezioni)
-r.rimuovi([2,4,0])
-print(r.poss_intersezioni)
-# l = r.possibili_intersezioni()
-# r.poss.intersezioni
-# print(l)
-'''

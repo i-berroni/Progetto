@@ -4,18 +4,18 @@ import time
 
 # Settiamo i parametri del costruttore del DFN
 
-N = 50
+N = 20
 Xmin = 0
-Xmax = 10
+Xmax = 5
 Ymin = 0
-Ymax = 10
+Ymax = 5
 Zmin = 0
-Zmax = 10
+Zmax = 5
 alpha_pl = 2
 radius_l = 2
 radius_u = 3
-k = 1
-mode_vector = np.array([[0.5], [2.], [1.]])
+k = 100
+mode_vector = np.array([[0.], [0.], [1.]])
 fixed_n_edges = 4
 
 # Creiamo un network
@@ -24,7 +24,7 @@ network = dfn.DiscreteFractureNetwork(N, Xmin, Xmax, Ymin, Ymax, Zmin, Zmax,
                                       alpha_pl, radius_l, radius_u, k, mode_vector, fixed_n_edges)
 # Rimuoviamo delle fratture
 
-v = [0,1, 5, 34, 21, 23, 20, 5]
+v = [0, 1]
 # network.rimuovi(v)
 
 # Aggiungiamo delle fratture
@@ -62,12 +62,6 @@ print(network.intersezioni)
 # print(network.traces)
 network.visual3D()
 
-time.sleep(3)
-# print(network.frac_traces)
 network.rimuovi(v)
 
-print(network.poss_intersezioni)
-print(network.intersezioni)
-
-network.visual3D()
 
