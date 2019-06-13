@@ -14,7 +14,7 @@ class DiscreteFractureNetwork:
     """
 
     def __init__(self, N, Xmin, Xmax, Ymin, Ymax, Zmin, Zmax,
-                 alpha_pl, radius_l, radius_u, k, mode_vector, fixed_n_edges=0):
+                 alpha_pl, radius_l, radius_u, k, mode_vector, tol=1.0e-10, fixed_n_edges=0):
         """
         Costruttore della classe
         :param N: numero di fratture
@@ -24,14 +24,13 @@ class DiscreteFractureNetwork:
         :param radius_u: limite superiore dei semiassi delle ascisse
         :param k: parametro di concentrazione della legge Von Mises-Fisher
         :param mode_vector: punto medio della legge Von Mises-Fisher
-        :param fixed_n_edges: numero fissato dei lati dei poligoni (> 2); se non specificato ogni poligono ha
+        :param fixed_n_edges: numero fissato dei lati dei poligoni (>= 8); se non specificato ogni poligono ha
                               un numero casuale di lati da 8 a 16 (distribuiti uniformemente)
+        :param tol: tolleranza
         """
 
         self.N = 0  # il valore verrà poi aggiornato nel metodo genfrac
-
-        # Definisco gli estremi del dominio del DFN
-        # (ovvero la regione dello spazio in cui si trovano i baricentri delle fratture)
+        self.tol = tol
         self.Xmin = Xmin
         self.Xmax = Xmax
         self.Ymin = Ymin
@@ -41,35 +40,22 @@ class DiscreteFractureNetwork:
 
         self.fixed_n_edges = fixed_n_edges
 
-        # Definisco i parametri della distribuzione PowerLawBounded (pl_dist)
         self.alpha_pl = alpha_pl
         self.radius_l = radius_l
         self.radius_u = radius_u
-        # Definisco la distribuzione power law bounded per i semiassi delle x
+        # Si definisce la distribuzione power law bounded per i semiassi delle x
         self.pl_dist = dist.PowerLawBounded(alpha=alpha_pl, radius_l=radius_l, radius_u=radius_u)
 
-        # Definisco i parametri della distribuzione Von Mises-Fisher (vmf_dist)
-        # e normalizzo opportunamente mode_vector in caso non fosse di norma unitaria
         self.k = k
-        self.mode_vector = mode_vector / np.linalg.norm(mode_vector)
-        # qui sto definendo la distribuzione Von Mises-Fisher, k è il parametro di concentrazione
-        # (parametro della distribuzione), mode_vector è un vettore di modulo unitario
+        self.mode_vector = mode_vector / np.linalg.norm(mode_vector) # nel caso il modulo non fosse unitario
+        # Si definisce la distribuzione Von Mises-Fisher
         self.vmf_dist = dist.VonMisesFisher(k=k, mode_vector=self.mode_vector)
 
-        # Creo la lista di poligoni che verra' aggiornata in genfrac
-        self.fractures = []
-
-        # Lista di liste con le possibili intersezioni, aggiornata in genfrac
-        self.poss_intersezioni = []
-
-        # Lista di liste con le effettive intersezioni
-        self.intersezioni = []  # da non confondere il metodo con l'attributo (omonimi)
-
-        # Lista di liste con le tracce per ogni poligono
-        self.frac_traces = []
-
-        # Lista con tutte le tracce del DFN
-        self.traces = []
+        self.fractures = []             # Lista delle fratture
+        self.poss_intersezioni = []     # Lista di liste con le possibili intersezioni
+        self.intersezioni = []          # Lista di liste con le effettive intersezioni
+        self.frac_traces = []           # Lista di liste con le tracce per ogni poligono
+        self.traces = []                # Lista con tutte le tracce del DFN
 
         self.genfrac(N)
 
@@ -79,53 +65,37 @@ class DiscreteFractureNetwork:
         :param n_to_gen: numero di fratture da generare
         """
 
-        # Crea un vettore di n_togen semiassi (maggiori) dell'asse X nell'intervallo [radius_l,radius_u]
-        semiaxes_x = self.pl_dist.sample(n_to_gen)
-
-        # ars è aspect ratio, ovvero il rapporto tra semiasse delle X e semiasse delle Y,
-        # dato da un'uniforme definita in [1,3]
-        ars = np.random.uniform(1, 3, n_to_gen)
-
-        # normals mi dà una "matrice" 3xn_togen con le normali come vettori colonna
-        normals = self.vmf_dist.sample(n_to_gen)
-
-        # n_edges genera il numero di lati (un numero intero positivo) in maniera randomica tra 8 e 16
-        # oppure li fissa a un valore se specificato nel costruttore
+        semiaxes_x = self.pl_dist.sample(n_to_gen)  # Vettore di n_to_gen semiassi x
+        ars = np.random.uniform(1, 3, n_to_gen)     # Vettore di n_to_gen aspect ratio
+        normals = self.vmf_dist.sample(n_to_gen)    # Matrice 3 x n_to_gen contenente le normali
 
         if self.fixed_n_edges == 0:
-            n_edges = np.random.random_integers(8, 16, n_to_gen)
+            n_edges = np.random.random_integers(8, 16, n_to_gen)    # Vettore di n_to_gen numero di lati
         else:
             n_edges = [self.fixed_n_edges] * n_to_gen
 
-        # alpha_angles sarebbe l'angolo di rotazione attorno alla normale (ovviamente sempre sul piano)
-        alpha_angles = np.random.uniform(0, 2 * np.pi, n_to_gen)
+        alpha_angles = np.random.uniform(0, 2 * np.pi, n_to_gen) # Vettore di n_to_gen angoli di rotazione
+                                                                 # attorno alla normale
 
-        # generazione randomica dei baricentri dei poligoni, i quali sono inseriti in una matrice n_to_gen x 3
+        # Matrice n_to_gen x 3 contenente i baricentri
         centers = np.random.uniform(np.array([self.Xmin, self.Ymin, self.Zmin]),
                                     np.array([self.Xmax, self.Ymax, self.Zmax]),
                                     (n_to_gen, 3))
 
-        # Creo i poligoni e li inserisco nella lista
         for i in range(n_to_gen):
             tmp = frac.Fracture(n_edges[i], semiaxes_x[i], alpha_angles[i], ars[i], normals[:, i], centers[i, :])
             self.fractures.append(tmp)
+            self.poss_intersezioni.append([])
+            self.intersezioni.append([])
+            self.frac_traces.append([])
 
-        # Aggiorno gli attributi: se sto creando una nuova istanza chiamo il metodo possibili_intersezioni,
-        # altrimenti se sto aggiungendo poligoni ad una istanza già creata, aggiorno le strutture dati
-        # in modo più efficiente
-        if self.N == 0:
+        if self.N == 0: # Si entra in questo blocco solo al momento della creazione del DFN
             self.N += n_to_gen
-            self.poss_intersezioni = self.possibili_intersezioni()
-            for i in range(self.N):
-                self.frac_traces.append([])
-            self.intersezioni = self.reali_intersezioni()
+            for i in range(self.N - 1):
+                for j in range(i + 1, self.N):
+                    self.aggiorna_int(i, j)
 
-        else:
-            for i in range(n_to_gen):
-                self.poss_intersezioni.append([])
-                self.intersezioni.append([])
-                self.frac_traces.append([])
-
+        else: # Si entra in questo blocco nel caso di aggiunte di poligoni al DFN già esistente
             # Confrontiamo le vecchie fratture con le nuove
             for i in range(self.N):
                 for j in range(n_to_gen):
@@ -141,75 +111,49 @@ class DiscreteFractureNetwork:
     def rimuovi(self, v):
         """
         Rimuove le fratture nelle posizioni indicate dalla lista v, e aggiorna opportunamente le strutture dati del DFN
-        :param v: lista contenente gli indici dei poligoni da rimuovere
+        :param r: lista contenente gli indici dei poligoni da rimuovere
         """
 
-        # Ordino in senso decrescente il vettore v e elimino eventuali indici ripetuti
-        # (un set in Python non ammette elementi uguali)
-        # Non perdo in efficienza in quanto il metodo e' pensato per eliminare un numero molto piu' piccolo
-        # del numero di fratture totali
-
-        v = sorted(v, reverse=True)
+        v = sorted(v, reverse=True) # Per evitare errori che possono sorgere con la rinumerazione
         v = list(set(v))
-
-        # Elimino le fratture richieste e aggiorno la lista di adiacenza poss_intersezioni
+        print(v)
         for i in v:
             self.fractures.pop(i)
             self.poss_intersezioni.pop(i)
             self.intersezioni.pop(i)
             for j in range(len(self.frac_traces[i])):
+                # Presa la j-esima traccia generata dall'i-esimo poligono, la si rimuove dalla lista delle tracce
+                # generate dall'altro genitore
                 tr = self.frac_traces[i][j]
                 if tr.i1 == i:
                     self.frac_traces[tr.i2].remove(tr)
                 else:
                     self.frac_traces[tr.i1].remove(tr)
                 self.traces.remove(tr)
-
             self.frac_traces.pop(i)
+
             for j in range(len(self.poss_intersezioni)):
-
                 if i in self.poss_intersezioni[j]:
-
                     if i in self.intersezioni[j]:
                         self.intersezioni[j].remove(i)
-                    for k in range(len(self.intersezioni[j])):
-                        if self.intersezioni[j][k] > i:  # rinumero
-                            self.intersezioni[j][k] -= 1
 
                     self.poss_intersezioni[j].remove(i)
-                for k in range(len(self.poss_intersezioni[j])):
-                    if self.poss_intersezioni[j][k] > i:  # rinumero
-                        self.poss_intersezioni[j][k] -= 1
 
+                # Si rinumerano gli indici relativi ai poligoni
+                for k in range(len(self.poss_intersezioni[j])):
+                    if self.poss_intersezioni[j][k] > i:
+                        self.poss_intersezioni[j][k] -= 1
+                for k in range(len(self.intersezioni[j])):
+                    if self.intersezioni[j][k] > i:
+                        self.intersezioni[j][k] -= 1
+            # Si rinumerano gli indici dei genitori delle tracce
             for tr in self.traces:
                 if tr.i1 > i:
                     tr.i1 -= 1
                 if tr.i2 > i:
                     tr.i2 -= 1
 
-        # Aggiorno gli attributi
         self.N = self.N - len(v)
-
-    def possibili_intersezioni(self):
-        """
-        Metodo che guarda ai Bounding Box delle fratture per una prima scrematura su possibili intersezioni.
-        :return: lista di liste tale che l'i-esima lista contenga gli indici delle fratture del DFN con BB intersecante
-        il BB dell'i-esimo poligono
-        """
-        # ovvero lista di adiacenza del grafo associato:
-        # due poligoni sono collegati da un arco se i loro BB si intersecano
-
-        # Creo una lista self.N liste vuote
-        l = []
-        for i in range(self.N):
-            l.append([])
-
-        for i in range(self.N - 1):
-            for j in range(i + 1, self.N):
-                if self.inters_BB(self.fractures[i], self.fractures[j]) is True:
-                    l[i].append(j)
-                    l[j].append(i)
-        return l
 
     def inters_BB(self, fr1, fr2):
         """
@@ -218,7 +162,6 @@ class DiscreteFractureNetwork:
         :param fr2: oggetto della classe Fracture
         :return: booleano
         """
-
         max_x_min = max(fr1.xmin, fr2.xmin)
         min_x_max = min(fr1.xmax, fr2.xmax)
         max_y_min = max(fr1.ymin, fr2.ymin)
@@ -230,131 +173,6 @@ class DiscreteFractureNetwork:
         else:
             return False
 
-    def scrittura1(self):
-        """
-        Metodo per scrivere su file come richiesto al punto 7
-        """
-
-        with open('file1.txt', 'w') as f1:
-            print(self.N, file=f1)
-            for i in range(self.N):
-                print(i, self.fractures[i].n, file=f1)
-                for j in range(self.fractures[i].n):
-                    print(self.fractures[i].vertici[0, j],
-                          self.fractures[i].vertici[1, j],
-                          self.fractures[i].vertici[2, j], file=f1)
-
-    def scrittura2(self):
-        """
-        Metodo per scrivere su file come richiesto al punto 8
-        """
-
-        with open('file2.txt', 'w') as f2:
-            print(self.N, file=f2)
-
-            somma_vertici = 0
-            for i in range(self.N):
-                somma_vertici = somma_vertici + self.fractures[i].n
-            print(somma_vertici, file=f2)
-
-            indice = 0
-            for i in range(self.N):
-                print(i, self.fractures[i].n, indice, file=f2)
-                indice = indice + self.fractures[i].n
-
-            for i in range(self.N):
-                for j in range(self.fractures[i].n):
-                    print(self.fractures[i].vertici[0, j],
-                          self.fractures[i].vertici[1, j],
-                          self.fractures[i].vertici[2, j], file=f2)
-
-    def visual3D(self):
-        """
-        Metodo per la visualizzazione grafica delle fratture e delle tracce
-        """
-
-        all_polygons = []
-        for i in range(self.N):
-            x = self.fractures[i].vertici[0, :].tolist()
-            y = self.fractures[i].vertici[1, :].tolist()
-            z = self.fractures[i].vertici[2, :].tolist()
-
-            x.append(x[0])
-            y.append(y[0])
-            z.append(z[0])
-            perimetro = go.Scatter3d(x=x, y=y, z=z,
-                                     mode='lines',
-                                     marker=dict(
-                                         color='red'
-                                     )
-                                     )
-            area = go.Mesh3d(x=x, y=y, z=z, color='#FFB6C1', opacity=0.60)
-
-            # Per controllare se un poligono e' parallelo a un piano coordinato che tolleranza devo usare???
-            if np.linalg.norm(self.fractures[i].vn - np.array([1, 0, 0])) < 1.0e-10:
-                area.delaunayaxis = 'x'
-            elif np.linalg.norm(self.fractures[i].vn - np.array([0, 1, 0])) < 1.0e-10:
-                area.delaunayaxis = 'y'
-            elif np.linalg.norm(self.fractures[i].vn - np.array([0, 0, 1])) < 1.0e-10:
-                area.delaunayaxis = 'z'
-
-            all_polygons.append(perimetro)
-            all_polygons.append(area)
-
-        for i in range(len(self.traces)):
-            x = self.traces[i].estremi[0, :].tolist()
-            y = self.traces[i].estremi[1, :].tolist()
-            z = self.traces[i].estremi[2, :].tolist()
-
-            segmento = go.Scatter3d(x=x, y=y, z=z,
-                                     mode='lines',
-                                     marker=dict(
-                                         color='black'
-                                     )
-                                     )
-            all_polygons.append(segmento)
-
-        fig_3d_alltogether = go.Figure(data=all_polygons)
-        poff.plot(fig_3d_alltogether)
-
-    def save(self):
-        """
-        Salva l'oggetto DiscreteFractureNetwork come file .pkl
-        """
-
-        with open('DFN.pkl', 'wb') as f3:
-            dill.dump(self, f3)
-
-    def reali_intersezioni(self):
-        """
-        Metodo per determinare le effettive intersezioni tra i poligoni
-        :return: lista di liste tale che l'i-esima lista contenga gli indici delle fratture del DFN effettivamente
-        intersecanti l'i-esimo poligono
-        """
-
-        # Creo una lista di self.N liste vuote
-        l = []
-        poss_copia = []
-        for i in range(self.N):
-            l.append([])
-            poss_copia.append([])
-            poss_copia[i] = self.poss_intersezioni[i].copy()
-
-        for i in range(self.N - 1):
-            for j in range(len(poss_copia[i])):
-                k = poss_copia[i][j]
-                if k != -1:
-                    tr = self.gen_trace(i, k)
-                    if tr is not None:
-                        self.traces.append(tr)
-                        l[i].append(k)
-                        l[k].append(i)
-                        self.frac_traces[i].append(tr)
-                        self.frac_traces[k].append(tr)
-                    poss_copia[i][j] = -1
-                    poss_copia[k][poss_copia[k].index(i)] = -1
-        return l
-
     def gen_trace(self, i1, i2):
         """
         Metodo per calcolare la traccia tra due poligoni
@@ -365,21 +183,16 @@ class DiscreteFractureNetwork:
         p1 = self.fractures[i1]
         p2 = self.fractures[i2]
 
-        # Calcoliamo la retta d'intersezione tra i poligoni
-        t = np.cross(p1.vn, p2.vn)  # direzione della retta
+        # Calcoliamo la retta d'intersezione tra i piani contenenti i poligoni
+        t = np.cross(p1.vn, p2.vn)
         A = np.array([p1.vn, p2.vn, t])
         b = np.array([np.dot(p1.vertici[:, 0], p1.vn), np.dot(p2.vertici[:, 0], p2.vn), 0])
 
-        r0 = np.linalg.solve(A, b)  # un generico punto della retta
-        # Ruotiamo il poligono p1 per ricondurci sul piano
-        # A causa di approssimazioni non otteniamo esattamente 0 come coordinate z, ma numeri dell'ordine di grandezza
-        # di 1.0e-16
-
+        r0 = np.linalg.solve(A, b)
         s = []
         s.extend(self.inters_2D(p1, t, r0))
-        if len(s) == 2:  # controlliamo se c'e' intersezione con il primo poligono, altrimenti non facciamo niente
+        if len(s) == 2:
             s.extend(self.inters_2D(p2, t, r0))
-
             if len(s) == 4:
                 q = np.argsort(s)
                 if (q[0] == 0 and q[1] == 1) or (q[0] == 2 and q[1] == 3):
@@ -392,7 +205,7 @@ class DiscreteFractureNetwork:
                     return tr
 
         else:
-            return None  # se non c'e' traccia restituiamo None
+            return None
 
     def inters_2D(self, p, t, r0):
         """
@@ -405,9 +218,8 @@ class DiscreteFractureNetwork:
                  lista vuota se non c'e' intersezione
         """
 
-        # RUOTO E MI RICONDUCO SUL PIANO
+        # Si ruota il poligono per ricondursi sul piano xy
         rotMatrix = np.dot(np.dot(mc.rotz(- p.alpha), mc.roty(p.phi - np.pi / 2)), mc.rotz(- p.teta))
-
         vertici = p.vertici.copy()
 
         for i in range(p.n):
@@ -416,27 +228,25 @@ class DiscreteFractureNetwork:
         t = np.dot(rotMatrix, t)
         r0 = np.dot(rotMatrix, r0 - p.bar)
 
-        # While per trovare le intersezioni
-        conta = 0
+        conta = 0   # Contatore dei lati intersecati
         i = 0
         s = []
         while conta < 2 and i < p.n:
             j = (i + 1) % p.n
             A = np.array([[t[0], vertici[0, i] - vertici[0, j]], [t[1], vertici[1, i] - vertici[1, j]]])
             b = np.array([vertici[0, i] - r0[0], vertici[1, i] - r0[1]])
-            if - 1.0e-10 <= np.linalg.det(A) <= 1.0e-10:
-
+            if - self.tol <= np.linalg.det(A) <= self.tol: # Si controlla il parallelismo
                 s1 = (vertici[0, i] - r0[0]) / t[0]
                 s2 = (vertici[1, i] - r0[1]) / t[1]
-                if abs(s1 - s2) < 1.0e-10:
+                if abs(s1 - s2) < self.tol:
                     s.append(s1)
                     s2 = (vertici[0, j] - r0[0]) / t[0]
                     s.append(s2)
                     return s
                 i += 1
             else:
-                x = np.linalg.solve(A, b)  # NON COMPRENDE IL CASO IN CUI SEGMENTO E RETTA SIANO PARALLELE
-                if 0 <= x[1] <= 1:
+                x = np.linalg.solve(A, b)
+                if - self.tol <= x[1] <= 1 + self.tol:
                     conta += 1
                     s.append(x[0])
                 i += 1
@@ -459,3 +269,86 @@ class DiscreteFractureNetwork:
                 self.intersezioni[i].append(j)
                 self.intersezioni[j].append(i)
 
+    def visual3D(self, filename='tmp-plot'):
+        """
+        Metodo per la visualizzazione grafica delle fratture e delle tracce
+        :param filename: nome del file che verrà creato
+        """
+
+        all_polygons = []
+        for i in range(self.N):
+            x = self.fractures[i].vertici[0, :].tolist()
+            y = self.fractures[i].vertici[1, :].tolist()
+            z = self.fractures[i].vertici[2, :].tolist()
+            x.append(x[0])
+            y.append(y[0])
+            z.append(z[0])
+            perimetro = go.Scatter3d(x=x, y=y, z=z, mode='lines', marker=dict(color='red'))
+            area = go.Mesh3d(x=x, y=y, z=z, color='#FFB6C1', opacity=0.60)
+
+            # Caso in cui il poligono sia parallelo ad uno dei piani coordinati
+            if np.linalg.norm(self.fractures[i].vn - np.array([1, 0, 0])) < self.tol:
+                area.delaunayaxis = 'x'
+            elif np.linalg.norm(self.fractures[i].vn - np.array([0, 1, 0])) < self.tol:
+                area.delaunayaxis = 'y'
+            elif np.linalg.norm(self.fractures[i].vn - np.array([0, 0, 1])) < self.tol:
+                area.delaunayaxis = 'z'
+
+            all_polygons.append(perimetro)
+            all_polygons.append(area)
+
+        for i in range(len(self.traces)):
+            x = self.traces[i].estremi[0, :].tolist()
+            y = self.traces[i].estremi[1, :].tolist()
+            z = self.traces[i].estremi[2, :].tolist()
+            segmento = go.Scatter3d(x=x, y=y, z=z, mode='lines', marker=dict(color='black'))
+            all_polygons.append(segmento)
+
+        fig_3d_alltogether = go.Figure(data=all_polygons)
+        poff.plot(fig_3d_alltogether, filename=filename+'html')
+
+    def scrittura1(self, filename='file1.txt'):
+        """
+        Metodo per scrivere su file come richiesto al punto 7
+        """
+
+        with open(filename, 'w') as f1:
+            print(self.N, file=f1)
+            for i in range(self.N):
+                print(i, self.fractures[i].n, file=f1)
+                for j in range(self.fractures[i].n):
+                    print(self.fractures[i].vertici[0, j],
+                          self.fractures[i].vertici[1, j],
+                          self.fractures[i].vertici[2, j], file=f1)
+
+    def scrittura2(self, filename='file2.txt'):
+        """
+        Metodo per scrivere su file come richiesto al punto 8
+        """
+
+        with open(filename, 'w') as f2:
+            print(self.N, file=f2)
+
+            somma_vertici = 0
+            for i in range(self.N):
+                somma_vertici = somma_vertici + self.fractures[i].n
+            print(somma_vertici, file=f2)
+
+            indice = 0
+            for i in range(self.N):
+                print(i, self.fractures[i].n, indice, file=f2)
+                indice = indice + self.fractures[i].n
+
+            for i in range(self.N):
+                for j in range(self.fractures[i].n):
+                    print(self.fractures[i].vertici[0, j],
+                          self.fractures[i].vertici[1, j],
+                          self.fractures[i].vertici[2, j], file=f2)
+
+    def save(self):
+        """
+        Salva l'oggetto DiscreteFractureNetwork come file .pkl
+        """
+
+        with open('DFN.pkl', 'wb') as f3:
+            dill.dump(self, f3)
