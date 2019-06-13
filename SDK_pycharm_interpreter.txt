@@ -1,0 +1,2 @@
+I just had this issue and found that there was another environment with the same name.
+Click "Show All" and click the minus icon on the environments you don't need or rename one of them so they don't conflict.
