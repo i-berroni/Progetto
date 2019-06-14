@@ -16,7 +16,7 @@ int main()
     FILE *fp1,*fp2;
 
     v=malloc(n*sizeof(struct riga));
-    fp1=fopen("filelettura.c","r");
+    fp1=fopen("filelettura.txt","r");
     if(fp1==NULL)
     {
         printf("Errore nell'apertura del file in lettura\n");
@@ -32,7 +32,7 @@ int main()
         dim=i+1;
     }
     fclose(fp1);
-    fp2=fopen("filescrittura.c","w");
+    fp2=fopen("filescrittura.txt","w");
     if(fp2==NULL)
     {
         printf("Errore nell'apertura del file in scrittura\n");
