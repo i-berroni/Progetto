@@ -134,7 +134,7 @@ class DiscreteFractureNetwork:
     def rimuovi(self, v):
         """
         Rimuove le fratture nelle posizioni indicate dalla lista v, e aggiorna opportunamente le strutture dati del DFN
-        :param r: lista contenente gli indici dei poligoni da rimuovere
+        :param v: lista contenente gli indici dei poligoni da rimuovere
         """
         v = list(set(v))
         v = sorted(v, reverse=True) # Per evitare errori che possono sorgere con la rinumerazione
