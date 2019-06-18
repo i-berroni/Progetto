@@ -129,7 +129,7 @@ class DiscreteFractureNetwork:
             for j in range(i + 1, self.N + len(v)):
                 self.aggiorna_int(i, j)
 
-            self.N += len(v)
+        self.N += len(v)
 
     def rimuovi(self, v):
         """
