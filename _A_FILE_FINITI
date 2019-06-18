@@ -1,6 +1,11 @@
 File completi da non toccare:
 
 DFN.py
+trace.py
+fracture.py
+main.py
+main1.py
+main2.py
 
 Esercizio0_finale.c
 Esercizio1.c
@@ -12,6 +17,7 @@ PCS_senh.m
 senh1.m
 senh2.m
 differenza_divisa.m
+Esercizio_8_Berrone_matlab.m (cambiare nome)
 
 esercizio_pcs.py
 grafo_test.py
