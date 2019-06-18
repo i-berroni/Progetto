@@ -2,33 +2,23 @@
 #include <stdlib.h>
 #include<math.h>
 
-/*
-Programma che richiede di inserire un intero positivo ndim e costruisce la matrice di Hilbert A quadrata
-di dimensione ndim.
-Successivamente effettua l'eliminazione gaussiana e ricava la fattorizzazione PA=LU della matrice A.
-Infine usando le funzioni solve_backward e solve_forward (sostituzione in indietro e sostituzione in avanti)
-risolve il sistema lineare Ax=b, con b tale che x sia il vettore con tutti gli elementi uguali a 1.
-Sappiamo che la matrice di Hilbert e' mal condizionata, quindi piu' la dimensione ndim e' elevata,
-piu' la soluzione trovata si discosta da quella reale (il programma non e' pensato per gestire il mal condizionamento di A).
-*/
-
 double* solve_backward(double**, double*,double*, int);
 double* solve_forward(double**, double*,double*, int);
 
 int main()
 {
-    int ndim, i, j, k, ind_pivot;   // ndim -> dimensione della matrice
-    double **A = NULL;              // A -> matrice da fattorizzare
+    int ndim, i, j, k, ind_pivot;
+    double **A = NULL;
     double *p_tmp, *x, *y, *b, *diag;
     int *pivot = NULL;
     double el_pivot, tmp;
 
-    // Leggo da standard input la dimensione della matrice
+    // Si legge da standard input la dimensione della matrice
 
     printf("Inserire la dimensione della matrice di Hilbert:\n");
     scanf("%d", &ndim);
 
-    // Data la dimensione alloco dinamicamente la matrice e il vettore pivot
+    // Si alloca dinamicamente la matrice e il vettore pivot
 
     A = (double**)malloc(ndim*sizeof(double *));
     pivot = (int*)malloc((ndim - 1)*sizeof(double));
@@ -43,7 +33,7 @@ int main()
         A[i] = (double*)malloc(ndim*sizeof(double));
     }
 
-    // Stampo la matrice per verificarne la correttezza e costruisco il vettore b in maniera tale che la soluzione x sia un vettore con
+    // Si stampa la matrice e si costruisce il vettore b in maniera tale che la soluzione x sia un vettore con
     // tutti gli elementi uguali a 1
 
     printf("\nLa matrice di Hilbert e':\n\n");
@@ -59,11 +49,11 @@ int main()
         printf("\n");
     }
 
-    // Effettuo l'eliminazione gaussiana con pivoting parziale
+    // Si effettua l'eliminazione gaussiana con pivoting parziale
 
     for(k = 0; k < ndim-1; k++)
     {
-        // Ricerco l'elemento pivot
+        // Si ricerca l'elemento pivot
 
         el_pivot = fabs(A[k][k]);
         ind_pivot = k;
@@ -75,7 +65,7 @@ int main()
             }
         pivot[k] = ind_pivot;
 
-        // Scambio le righe se necessario
+        // Si scambiano le righe se necessario
 
         if(pivot[k] != k)
         {
@@ -84,12 +74,12 @@ int main()
             A[pivot[k]] = p_tmp;
         }
 
-        // Procedo con l'algoritmo di eliminazione Gaussiana
+        // Si procede con l'algoritmo di eliminazione Gaussiana
 
         for(i = k+1; i < ndim; i++)
             if( A[k][k] != 0.0 )
             {
-                A[i][k] = A[i][k] / A[k][k];       // salvo il modificatore direttamente nella parte triangolare inferiore della matrice
+                A[i][k] = A[i][k] / A[k][k];       // si salva il modificatore direttamente nella parte triangolare inferiore della matrice
                 for(j = k+1; j < ndim; j++)
                     A[i][j] -= A[i][k] * A[k][j];
             }
@@ -101,7 +91,7 @@ int main()
 
     }
 
-    // Ristampo la matrice e il vettore pivot dopo la modifica
+    // Si ristampa la matrice e il vettore pivot dopo la modifica
 
     printf("\nLa matrice modificata e':\n\n");
     for(i = 0; i < ndim; i++)
@@ -118,11 +108,11 @@ int main()
         printf("%d ", pivot[i]);
 
     /*
-    Procedo con la risoluzione del sistema lineare Ax=b sfruttando la fattorizzazione PA=LU
-    che mi porta a risolvere due sistemi triangolari Ly=Pb e Ux=y
+    Si procede con la risoluzione del sistema lineare Ax=b sfruttando la fattorizzazione PA=LU
+    che porta a risolvere due sistemi triangolari Ly=Pb e Ux=y
     */
 
-    // Salvo la diagonale di A, la imposto uguale a tutti 1 e permuto b secondo le informazioni del vettore pivot
+    // Si salva la diagonale di A, la si imposta uguale a tutti 1 e si permuta b secondo le informazioni del vettore pivot
     for (i = 0; i < ndim; i++)
         {
             diag[i] = A[i][i];
@@ -138,7 +128,7 @@ int main()
 
     y = solve_forward(A, b, y, ndim);
 
-    // Reimposto la diagonale di A
+    // Si reimposta la diagonale di A
 
     for (i = 0; i < ndim; i++)
         {
@@ -146,15 +136,13 @@ int main()
         }
     x = solve_backward(A, y, x, ndim);
 
-    // Stampo il vettore soluzione x (come vettore riga)
+    // Si stampa il vettore soluzione x (come vettore riga)
 
     printf("\nLa soluzione del sistema e' (rappresentata come vettore riga):\n");
     for (i = 0; i < ndim; i++)
         {
             printf("%f ", x[i]);
         }
-
-    // Libero la memoria
 
     free(A);
     free(x);
@@ -209,4 +197,3 @@ double* solve_forward(double** L, double* b, double* x, int n)
     }
     return x;
 }
-
