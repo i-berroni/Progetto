@@ -18,7 +18,7 @@ function [senh]=senh2(x)
         end
 
         if ln2ovft<x
-            disp("Si è andati in overflow");
+            disp('Si è andati in overflow');
         end
         
         if tmp < 0
