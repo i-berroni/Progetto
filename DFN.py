@@ -108,15 +108,36 @@ class DiscreteFractureNetwork:
 
             self.N += n_to_gen
 
+    def aggiungi(self, v):
+        """
+        Aggiunge i poligoni, già esistenti, presenti nella lista v
+        :param v: lista di oggetti di classe Fracture
+        """
+        for i in range(len(v)):
+            self.fractures.append(v[i])
+            self.poss_intersezioni.append([])
+            self.intersezioni.append([])
+            self.frac_traces.append([])
+
+        # Confrontiamo le vecchie fratture con le nuove
+        for i in range(self.N):
+            for j in range(len(v)):
+                self.aggiorna_int(i, self.N + j)
+
+        # Confrontiamo le nuove fratture tra loro
+        for i in range(self.N, self.N + len(v) - 1):
+            for j in range(i + 1, self.N + len(v)):
+                self.aggiorna_int(i, j)
+
+            self.N += len(v)
+
     def rimuovi(self, v):
         """
         Rimuove le fratture nelle posizioni indicate dalla lista v, e aggiorna opportunamente le strutture dati del DFN
         :param r: lista contenente gli indici dei poligoni da rimuovere
         """
-
-        v = sorted(v, reverse=True) # Per evitare errori che possono sorgere con la rinumerazione
         v = list(set(v))
-        print(v)
+        v = sorted(v, reverse=True) # Per evitare errori che possono sorgere con la rinumerazione
         for i in v:
             self.fractures.pop(i)
             self.poss_intersezioni.pop(i)
@@ -305,7 +326,7 @@ class DiscreteFractureNetwork:
             all_polygons.append(segmento)
 
         fig_3d_alltogether = go.Figure(data=all_polygons)
-        poff.plot(fig_3d_alltogether, filename=filename+'html')
+        poff.plot(fig_3d_alltogether, filename=filename+'.html')
 
     def scrittura1(self, filename='file1.txt'):
         """
