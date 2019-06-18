@@ -132,3 +132,4 @@ def visita_ampiezza(grafo, vertice_start, plot_grafo=False, plot_albero=False, p
         plt.axes().clear()
 
     return albero
+
